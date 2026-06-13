@@ -1,0 +1,7 @@
+# {{PROJECT_NAME}} — Procfile (local 멀티프로세스 / overmind + cargo-watch)
+# 사전: cargo install cargo-watch  +  overmind (brew install overmind 또는 go install) + tmux
+# 실행: make run  (= overmind start -f Procfile.dev) — 별도 터미널서 overmind ps/stop/connect/restart web
+# tmux 없으면 hivemind 로 대체 가능(제어 소켓 없음): hivemind Procfile.dev
+web: cargo watch -x run
+# 워커 예시(필요 시 주석 해제 — 대량 문서 처리/재색인):
+# worker: cargo watch -x 'run --bin worker'

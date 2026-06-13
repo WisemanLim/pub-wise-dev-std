@@ -1,0 +1,6 @@
+# {{PROJECT_NAME}} — Procfile (local 멀티프로세스 / honcho)
+# 실행: make run  (= uv run honcho -f Procfile.dev start) — 통합 로그, Ctrl-C 로 전체 종료
+# 검증: make ps   (= honcho check)
+web: uv run uvicorn app.main:app --reload --host 0.0.0.0 --port ${PORT:-8000}
+# 워커 예시(필요 시 주석 해제 — arq/celery/rq 등):
+# worker: uv run python -m app.worker

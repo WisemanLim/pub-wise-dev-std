@@ -1,0 +1,123 @@
+id: bio-rag-research
+title: "Bio/Healthcare RAG 연구 플랫폼"
+status: preview
+summary: >
+  바이오/헬스케어/식품-제조 연구조직용 RAG 플랫폼. 역할 분리형 스택 — Next 포털 + NestJS BFF
+  + FastAPI 분석 API + LangChain/LlamaIndex RAG. 보안·출처·재현성·감사 가능성을 기본 전제로 한다.
+extends: [node-next-nest, python-fastapi]
+when_to_use:
+  - "내부 문서/논문/SOP/프로토콜 기반 RAG 검색 서비스"
+  - "유전체·마이크로바이옴·임상·공정 데이터 분석 + LLM"
+  - "규제(개인정보/데이터무결성/재현성) 추적이 필요한 연구조직"
+avoid_when:
+  - "단순 웹/API (규제·RAG 불필요) → node-next-nest 또는 python-fastapi"
+
+languages:
+  primary: python
+  also: [node, typescript, go, rust]
+
+package_managers:
+  default: uv
+  allowed: [uv, pip, pnpm, npm]
+  notes: "분석/RAG=uv, 포털/BFF=pnpm. 역할별로 분리."
+
+layers:
+  frontend:
+    framework: "Next.js (연구 포털, RAG UI, 권한 기반 화면)"
+    ui: "React + TypeScript + Tailwind + Storybook"
+  backend:
+    bff: "NestJS (인증/권한/감사 로직 분리)"
+    analysis_api: "FastAPI + uv + uvicorn (통계/ML/생체신호)"
+    workers: "Go 또는 Rust (대량 문서 처리, 재색인 워커, 큐 소비자)"
+  database:
+    default: postgres
+    local: sqlite
+    cache: redis
+    vector: "PGVector 또는 Chroma"
+    graph: "Neo4j (GraphRAG)"
+    object: "S3 또는 MinIO (원문/파생/스냅샷)"
+  rag:
+    orchestration: "LangChain 또는 LlamaIndex + LangGraph/PydanticAI"
+    retrieval: "BM25 + 벡터 하이브리드 + 메타데이터 필터 + 재랭킹"
+    eval: "Langfuse + Ragas (groundedness/recall/MRR)"
+  ops:
+    ci: "GitHub Actions (or GitLab CI) + 보안 스캔"
+    container: "Docker + Docker Compose"
+    deploy: "Kubernetes + Helm + Argo CD"
+    secrets: "Vault 또는 클라우드 Secret Manager"
+    observability: "OpenTelemetry + Prometheus + Grafana + Langfuse"
+  app: "Flutter/React Native (현장 점검) · Tauri (장비 UI), optional"
+
+run_methods:
+  direct:
+    dev: "포털: pnpm dev / 분석API: uv run uvicorn --reload"
+    start: "compose 또는 K8s 권장(다중 서비스)"
+  container:
+    dev: "docker compose up (web, bff, analysis, postgres, pgvector, redis, neo4j, minio)"
+
+environments:
+  local:   { db: sqlite,   compose: true,  notes: "compose 축소판(postgres+pgvector+redis)" }
+  dev:     { db: postgres, compose: true,  notes: "전체 서비스 + neo4j + minio" }
+  staging: { db: postgres, compose: true,  notes: "prod 동등 + 감사로그/마스킹 검증" }
+  prod:    { db: postgres, compose: false, notes: "K8s, 규제 데이터 분리 VPC, GitOps" }
+
+scaffold:
+  tree:
+    - "apps/portal/"
+    - "apps/bff/"
+    - "services/analysis/"
+    - "services/rag/"
+    - "services/worker/"
+    - "packages/shared/"
+    - "docker/"
+    - ".github/workflows/"
+  files:
+    - "Makefile"
+    - "docker-compose.yml"
+    - "services/analysis/pyproject.toml"
+    - "services/rag/pyproject.toml"
+    - "apps/portal/package.json"
+    - ".env.local"
+    - ".env.dev"
+    - "SECURITY.md"
+    - ".github/workflows/ci.yml"
+
+security_standards:
+  data_classification: "공개/내부/민감/규제대상(PHI·유전정보) 4단계. 업로드 기본값=민감."
+  access_control: "OIDC SSO + RBAC/ABAC. 질의 시점 ACL 필터 후 검색."
+  deidentification: "전처리 파이프라인에 마스킹 단계 기본 포함."
+  audit: "인덱싱/조회/다운로드 감사로그 → Audit DB + SIEM."
+  provenance: "모든 응답에 출처·버전·인덱싱시점·검증상태 병기."
+  reproducibility: "chunker/embedding 모델/prompt 버전 고정·기록."
+  high_risk: "고위험 질의는 human-in-the-loop 승인 큐."
+
+index_metadata_min_fields:
+  - document_id
+  - source_uri
+  - domain
+  - project_id
+  - sensitivity
+  - owner
+  - version
+  - chunk_id
+  - section_path
+  - approval_state
+  - retention_policy
+  - indexed_at
+
+testing:
+  framework: "pnpm -r test (Vitest) + uv run pytest + Ragas (RAG groundedness/recall/MRR)"
+  dir: "test/"                                      # test-runner 표준 / convention
+  dev_env: "test/dev-env/"                          # 표준 환경 검증 1회 / env verification, once
+  impl: "test/impl/<Nth>/"                          # 구현마다 / per implementation iteration
+  cycle: "시나리오→진행→오류시 수정·재시험→결과작성 / scenario→run→fix&retest→result"
+  rag_eval: "정답 질의셋 기반 recall/MRR/groundedness 케이스 포함 / eval set with grounded answers"
+
+makefile_targets:
+  dev: "compose up (전체 스택)"
+  test: "pnpm -r test + uv run pytest"
+  build: "docker build (각 서비스)"
+  deploy: "helm upgrade / argocd sync"
+
+references:
+  - "원본 §3(도메인 표준), §4(RAG 아키텍처/보안/인덱싱/에이전틱 워크플로우/기술스택표준)"

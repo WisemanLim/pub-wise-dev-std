@@ -1,0 +1,37 @@
+{
+  "name": "wise-dev-std",
+  "version": "0.8.0",
+  "description": "PRD 작성 도우미 + PRD 기반 스택 추천·스캐폴딩·구현·시험·리뷰 표준화 / PRD authoring helper + PRD-based stack recommend, scaffold, implement, test & review. 우선순위 언어(Node/Python/Rust/Go/C), 패키지매니저(uv/pip/pnpm/npm), 환경(local/dev/staging/prod), DB(sqlite/postgres), 실행방식(직접/docker-compose), 모바일 앱(iOS SwiftUI·Android Compose·Flutter·React Native, kind:mobile), 시험(test/dev-env·test/impl), 구현 후 리뷰(심층 분석 + 레벨별 라인 코드 리뷰 → .review/), 업종/업태(KSIC) 도메인 오버레이(규제·데이터등급·선호스택). Cursor·Antigravity 준용.",
+  "author": {
+    "name": "WisemanLim",
+    "url": "https://github.com/WisemanLim"
+  },
+  "homepage": "https://github.com/WisemanLim/pub-wise-dev-std",
+  "repository": "https://github.com/WisemanLim/pub-wise-dev-std",
+  "keywords": [
+    "scaffold",
+    "stack-advisor",
+    "dev-environment",
+    "standard",
+    "prd",
+    "test",
+    "implement",
+    "review",
+    "code-review",
+    "audit",
+    "node",
+    "python",
+    "go",
+    "rust",
+    "rag",
+    "mobile",
+    "ios",
+    "android",
+    "flutter",
+    "react-native",
+    "domain",
+    "industry",
+    "ksic",
+    "compliance"
+  ]
+}

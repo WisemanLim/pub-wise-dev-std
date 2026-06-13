@@ -1,0 +1,20 @@
+{
+  "name": "@{{PROJECT_NAME}}/api",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.x",
+    "@nestjs/core": "11.x",
+    "@nestjs/platform-express": "11.x"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "11.x",
+    "typescript": "5.x",
+    "vitest": "2.x"
+  }
+}

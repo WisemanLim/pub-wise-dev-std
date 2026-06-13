@@ -1,0 +1,86 @@
+id: rust-axum
+title: "Rust (Axum)"
+status: stable
+summary: >
+  타입 안전·고성능 Axum 웹 프레임워크(대안 Actix). 메모리 안전이 필요한 코어/워커, Tauri 데스크톱 빌드 파이프라인.
+when_to_use:
+  - "메모리 안전 + 극한 성능이 동시에 필요한 코어"
+  - "대량 문서 처리 / 재색인 워커"
+  - "Tauri 기반 데스크톱 앱 백엔드"
+avoid_when:
+  - "빠른 프로토타이핑·풍부한 ML 생태계 우선 → python-fastapi"
+  - "팀 Rust 숙련도가 낮고 일정이 촉박할 때"
+
+languages:
+  primary: rust
+  also: []
+
+package_managers:
+  default: cargo
+  allowed: [cargo]
+  notes: "Cargo.toml / Cargo.lock. workspace 로 멀티 크레이트 관리."
+
+layers:
+  frontend: null
+  backend:
+    framework: "Axum (대안: Actix Web)"
+    orm: "SQLx (compile-time checked) 또는 SeaORM"
+    runtime: "tokio"
+  database:
+    default: postgres
+    local: sqlite
+    cache: redis
+  ops:
+    ci: "GitHub Actions (or GitLab CI)"
+    container: "Docker (multi-stage, distroless) + Docker Compose"
+    deploy: "Kubernetes + Helm + Argo CD"
+    quality: "clippy + cargo test + cargo audit"
+  app: "Tauri (desktop, optional)"
+
+run_methods:
+  direct:
+    dev: "cargo run (또는 cargo watch -x run)"
+    start: "./target/release/server"
+    local_pm: "overmind (Procfile.dev, +cargo-watch +tmux) — make run/stop/restart/logs/ps. 대안 hivemind"
+  container:
+    dev: "docker compose up"
+
+environments:
+  local:   { db: sqlite,   compose: false, notes: "cargo run + sqlite" }
+  dev:     { db: postgres, compose: true,  notes: "compose: postgres+redis" }
+  staging: { db: postgres, compose: true,  notes: "release 빌드 검증" }
+  prod:    { db: postgres, compose: false, notes: "K8s, distroless 이미지" }
+
+scaffold:
+  tree:
+    - "src/"
+    - "src/handlers/"
+    - "src/db/"
+    - "migrations/"
+    - "docker/"
+    - ".github/workflows/"
+  files:
+    - "Makefile"
+    - "Procfile.dev"           # overmind + cargo-watch (local 멀티프로세스)
+    - "docker-compose.yml"
+    - "Cargo.toml"
+    - "src/main.rs"
+    - ".env.local"
+    - ".env.dev"
+    - ".github/workflows/ci.yml"
+
+testing:
+  framework: "cargo test (+ reqwest/tower for HTTP)" # 시험 러너 / test runner
+  dir: "test/"                                      # test-runner 표준 / convention
+  dev_env: "test/dev-env/"                          # 표준 환경 검증 1회 / env verification, once
+  impl: "test/impl/<Nth>/"                          # 구현마다 / per implementation iteration
+  cycle: "시나리오→진행→오류시 수정·재시험→결과작성 / scenario→run→fix&retest→result"
+
+makefile_targets:
+  dev: "cargo run (또는 compose up)"
+  test: "cargo test"
+  build: "docker build (multi-stage)"
+  deploy: "helm upgrade / argocd sync"
+
+references:
+  - "원본 §2 Backend(Axum/Actix), §4 App(Tauri), §5 backend.default-rust"

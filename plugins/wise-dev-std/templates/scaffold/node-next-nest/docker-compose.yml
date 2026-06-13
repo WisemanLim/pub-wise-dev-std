@@ -1,0 +1,22 @@
+# {{PROJECT_NAME}} — node-next-nest
+# 주의: pnpm 워크스페이스 앱(web/api)은 dev 시 호스트 실행 권장(루트 lockfile/workspace 컨텍스트).
+# 여기서는 datastore 인프라만 정의. app 컨테이너화는 prod 멀티스테이지(루트 컨텍스트)로 별도.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-app}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  redis:
+    image: redis:7.4-alpine
+    ports: ["6379:6379"]
+volumes:
+  pgdata:

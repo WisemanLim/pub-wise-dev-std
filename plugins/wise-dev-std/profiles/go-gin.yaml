@@ -1,0 +1,86 @@
+id: go-gin
+title: "Go (Gin)"
+status: stable
+summary: >
+  경량·고성능 Gin HTTP 프레임워크. 고동시성 코어 서비스, 큐 소비자, 워커에 적합.
+when_to_use:
+  - "고처리량·저지연 코어 서비스"
+  - "단순 배포(단일 바이너리)가 중요할 때"
+  - "큐 소비자 / 재색인 워커"
+avoid_when:
+  - "풍부한 ML/데이터 라이브러리 필요 → python-fastapi"
+  - "메모리 안전·극한 성능 보장 → rust-axum"
+
+languages:
+  primary: go
+  also: []
+
+package_managers:
+  default: "go modules"
+  allowed: ["go modules"]
+  notes: "go.mod / go.sum. 빌드 진입점은 Makefile 로 추상화."
+
+layers:
+  frontend: null
+  backend:
+    framework: "Gin (대안: Echo / Fiber)"
+    orm: "GORM"
+    rpc: "gRPC (optional)"
+  database:
+    default: postgres
+    local: sqlite
+    cache: redis
+  ops:
+    ci: "GitHub Actions (or GitLab CI)"
+    container: "Docker (multi-stage) + Docker Compose"
+    deploy: "Kubernetes + Helm + Argo CD"
+    quality: "golangci-lint + go test + SonarQube"
+  app: null
+
+run_methods:
+  direct:
+    dev: "go run ./cmd/server (또는 air 핫리로드)"
+    start: "./bin/server"
+    local_pm: "goreman (Procfile.dev) — make run/stop/restart/ps. go install github.com/mattn/goreman@latest"
+  container:
+    dev: "docker compose up"
+
+environments:
+  local:   { db: sqlite,   compose: false, notes: "go run + sqlite" }
+  dev:     { db: postgres, compose: true,  notes: "compose: postgres+redis" }
+  staging: { db: postgres, compose: true,  notes: "prod 동등" }
+  prod:    { db: postgres, compose: false, notes: "K8s, 단일 바이너리 이미지" }
+
+scaffold:
+  tree:
+    - "cmd/server/"
+    - "internal/"
+    - "internal/handler/"
+    - "internal/repository/"
+    - "docker/"
+    - ".github/workflows/"
+  files:
+    - "Makefile"
+    - "Procfile.dev"           # goreman (local 멀티프로세스)
+    - "docker-compose.yml"
+    - "go.mod"
+    - "cmd/server/main.go"
+    - ".env.local"
+    - ".env.dev"
+    - ".github/workflows/ci.yml"
+
+testing:
+  framework: "go test (+ testify, httptest)"       # 시험 러너 / test runner
+  dir: "test/"                                     # test-runner 표준 / convention
+  dev_env: "test/dev-env/"                         # 표준 환경 검증 1회 / env verification, once
+  impl: "test/impl/<Nth>/"                         # 구현마다 / per implementation iteration
+  cycle: "시나리오→진행→오류시 수정·재시험→결과작성 / scenario→run→fix&retest→result"
+
+makefile_targets:
+  dev: "go run ./cmd/server (또는 compose up)"
+  test: "go test ./..."
+  build: "docker build (multi-stage)"
+  deploy: "helm upgrade / argocd sync"
+
+references:
+  - "원본 §2 Backend(Gin/GORM), §5 backend.default-go"

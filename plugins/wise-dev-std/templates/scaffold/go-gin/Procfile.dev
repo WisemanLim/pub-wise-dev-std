@@ -1,0 +1,7 @@
+# {{PROJECT_NAME}} — Procfile (local 멀티프로세스 / goreman)
+# 사전: go install github.com/mattn/goreman@latest
+# 실행: make run  (= goreman -f Procfile.dev start) — 통합 로그, 별도 터미널서 goreman run status/restart-all
+# 핫리로드를 원하면 'go run' 대신 'air' 사용: web: air
+web: go run ./cmd/server
+# 워커 예시(필요 시 주석 해제 — 큐 소비자/재색인):
+# worker: go run ./cmd/worker
