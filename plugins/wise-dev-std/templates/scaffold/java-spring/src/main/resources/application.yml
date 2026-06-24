@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: "{{PROJECT_NAME}}"
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/app}
+    username: ${POSTGRES_USER:app}
+    password: ${POSTGRES_PASSWORD:app}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

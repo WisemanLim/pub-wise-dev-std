@@ -27,7 +27,11 @@ allowed-tools: Read, Glob, Grep, WebSearch
 6. stack-advisor §8 표 형식으로 출력 + **도메인 오버레이 요약**(규제·데이터등급·인프라·시험·출처).
    추천 프로파일이 `kind: mobile` 이면 **§8 모바일 표**(DB/compose 제외, 플랫폼·플레이버·Fastlane 포함)로 출력하고,
    API 가 필요하면 서버 프로파일을 함께 제안(모노레포는 `extends`).
-7. 마지막에 안내: "확정 시 `/wise-dev-std:scaffold <id>` 로 구조 생성(도메인 → `COMPLIANCE.md`),
+7. **프론트엔드 감지** — 추천 프로파일의 `layers.frontend` 가 존재하면
+   **ui-design-advisor 스킬을 사용**해 §3 디자인 스택 델타(컴포넌트 라이브러리·애니메이션·접근성)를
+   추천 표 아래에 **"디자인 스택 델타"** 섹션으로 추가 출력한다.
+   상황별 레퍼런스 사이트(§2)도 2~3개 안내. 더 자세한 가이드는 `/wise-dev-std:ui-design` 안내.
+8. 마지막에 안내: "확정 시 `/wise-dev-std:scaffold <id>` 로 구조 생성(도메인 → `COMPLIANCE.md`),
    `/wise-dev-std:env-init` 로 환경파일 생성."
 
 규칙: 추측 금지. profiles + domains 데이터와 PRD 근거만 사용. 트렌드/규제 반영 시 출처 표기.

@@ -4,7 +4,7 @@ argument-hint: "custom | <profile-id> [--domain <domain-id>] [target-dir]"
 allowed-tools: Read, Glob, Write, Edit, Bash
 ---
 
-# /wise-dev-standard:scaffold
+# /wise-dev-std:scaffold
 
 목표: 선택한 스택 프로파일로 실제 프로젝트 골격 생성. 업종(도메인) 지정 시 규제·데이터등급 `COMPLIANCE.md` 포함.
 
@@ -145,7 +145,7 @@ allowed-tools: Read, Glob, Write, Edit, Bash
 
 실행:
 1. **project-scaffolder 스킬을 사용**한다.
-2. profile-id 없으면 (custom 아닌 경우) `/wise-dev-standard:recommend` 를 먼저 실행하도록 안내.
+2. profile-id 없으면 (custom 아닌 경우) `/wise-dev-std:recommend` 를 먼저 실행하도록 안내.
 3. `${CLAUDE_PLUGIN_ROOT}/profiles/<id>.yaml` 읽기 (`extends` 병합). `--domain` 있으면
    `${CLAUDE_PLUGIN_ROOT}/domains/<domain-id>.yaml` 도 읽기.
 4. target-dir 가 비어있지 않으면 사용자 확인. 기존 동일 파일은 덮어쓰지 않고 `*.generated` 로.
@@ -153,7 +153,7 @@ allowed-tools: Read, Glob, Write, Edit, Bash
    - **정적 템플릿 우선**: `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/` 가 있으면 복사 + `{{PROJECT_NAME}}` 치환(결정적). 나머지만 생성으로 보완.
    - 템플릿에 포함된 `README.md`(한국어) · `README.en.md`(영문) 도 함께 복사·치환.
      없는 경우 아래 내용을 포함한 두 파일을 **생성**: 기술 스택·사전 요구사항·빠른 시작·`make` 전체 타겟 설명·환경 변수 목록·빌드&배포 절차·디렉터리 구조.
-     스캐폴딩에 사용된 플러그인/프로파일 정보(`wise-dev-standard / <id>`)를 문서 상단에 명시.
+     스캐폴딩에 사용된 플러그인/프로파일 정보(`wise-dev-std / <id>`)를 문서 상단에 명시.
    - `kind: service`(기본) → project-scaffolder **§2**(compose/Dockerfile/DB) 규칙.
    - `kind: mobile` → project-scaffolder **§2.5**(compose/Dockerfile/DB 미생성, 플랫폼 레이아웃 + 빌드 플레이버 + `fastlane/Fastfile` + macOS CI) 규칙.
 5-a. **`.gitignore` 조립 (멱등)** — implement 와 동일한 규칙으로 스캐폴딩 시점에 미리 생성.

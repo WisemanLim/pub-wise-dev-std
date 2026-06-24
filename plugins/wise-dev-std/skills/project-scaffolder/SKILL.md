@@ -233,7 +233,7 @@ test/
 ```
 - `test/dev-env/scenario.md` 는 프로파일 기준 케이스로 채운다: 의존성 설치, `make up`, DB 연결,
   헬스 체크, `make test` 동작. Fill with profile-based cases (deps, compose up, DB, health, make test).
-- `test/impl/` 는 비워 둔다(구현 시 `/wise-dev-standard:implement` 가 `<Nth>/` 생성).
+- `test/impl/` 는 비워 둔다(구현 시 `/wise-dev-std:implement` 가 `<Nth>/` 생성).
   Leave `test/impl/` empty; `implement` creates `<Nth>/` per iteration.
 - `.gitignore` 에 `test/**/logs/` 를 추가하도록 안내(원본 로그 비커밋) / suggest ignoring raw logs.
 
@@ -314,7 +314,7 @@ SDK/툴체인 확인(flutter doctor / xcodebuild -version / sdkmanager / expo --
 프로파일 `test/`(Flutter `test/`, RN `__tests__/`, iOS `AppTests/`, Android `app/src/test`)와 시험표준 `test/dev-env`·`test/impl` 은 공존한다.
 
 ## 3. 멀티 IDE 준용
-스캐폴딩 직후, 사용자가 원하면 `/wise-dev-standard:standardize` 를 안내해
+스캐폴딩 직후, 사용자가 원하면 `/wise-dev-std:standardize` 를 안내해
 선택된 표준을 `AGENTS.md` + `.cursor/rules/` 로 내보내 Cursor/Antigravity 가
 동일 표준을 따르게 한다.
 

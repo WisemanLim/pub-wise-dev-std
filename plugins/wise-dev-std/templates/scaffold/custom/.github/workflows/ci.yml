@@ -1,0 +1,16 @@
+# {{PROJECT_NAME}} — custom CI template
+# resolve 단계에서 선택된 런타임에 맞는 base_profile CI 로 교체됩니다.
+# 아래는 Docker 기반 폴백 CI 입니다.
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker compose build
+      - name: Run tests in container
+        run: docker compose run --rm api sh -c "make test || echo 'adjust test command for your runtime'"

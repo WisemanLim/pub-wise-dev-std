@@ -31,7 +31,11 @@ Draft `PRD.md` from a short survey so the rest of the flow can consume it.
 5. **초안 생성** — prd-advisor §3 One-Page 템플릿을 §4 규칙으로 채워 루트 `PRD.md` 작성.
    모르는 값은 `가정:` 표시. `--full` 이면 §6 풀스펙 섹션을 덧붙인다.
 6. **자가 점검** — §7 리뷰 체크리스트 결과를 한 줄 보고.
-7. **안내** — "검토·수정 후 `/wise-dev-std:recommend` 로 스택·업종 추천을 이어가세요."
+7. **프론트엔드 감지** — `## 3. 범위` 또는 `## 4. 사용자 경험` 에 화면/UI/UX/웹/앱/인터페이스 언급이 있으면
+   **ui-design-advisor 스킬을 사용**해 `### 디자인 방향` 섹션 후보를 제안한다.
+   사용자가 원하면 PRD.md 에 바로 추가(`--prd` 동작). 원하지 않으면 나중에
+   `/wise-dev-std:ui-design --prd` 로 추가 가능함을 안내.
+8. **안내** — "검토·수정 후 `/wise-dev-std:recommend` 로 스택·업종 추천을 이어가세요."
 
 ## 규칙 / Rules
 - 추측 금지 — 모르는 값은 `가정:` 으로 명시(문서 §4: AI 는 보조 브레인, 판단은 사용자).

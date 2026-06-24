@@ -8,7 +8,7 @@ argument-hint: "[profile-id] [feature-keyword]"
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 
-# /wise-dev-standard:implement
+# /wise-dev-std:implement
 
 목표 / Goal: 표준 환경 구성 완료 후, PRD 에 맞춰 기능을 구현하고 동일한 시험 사이클을 적용한다.
 Implement features per PRD on the standardized project, applying the test cycle.
@@ -54,7 +54,7 @@ recommend → scaffold → env-init → standardize 가 끝나 있어야 한다.
    d. 갱신 완료 후 구현 재개. 새 요구사항이 현 이터레이션 범위를 벗어나면
       PRD 에만 기록하고 다음 이터레이션 대상으로 안내(현 `test/impl/<Nth>/` 범위 확대 금지).
    **소스코드는 이 단계에서 절대 수정하지 않는다.**
-   > `/wise-dev-standard:req-update` 로 명시적으로 호출도 가능.
+   > `/wise-dev-std:req-update` 로 명시적으로 호출도 가능.
 5. **구현 / Implement** — 표준 구조 위에 기능 작성. 표준 준수:
    - 언어/패키지매니저/프레임워크/DB/실행방식 = 선택 프로파일.
    - 기존 코드 스타일·구조 유지, 표면적 최소 변경 / surgical changes.
@@ -94,7 +94,7 @@ recommend → scaffold → env-init → standardize 가 끝나 있어야 한다.
 ## 규칙 / Rules
 - **구현 중 언제든** 사용자가 새 요구사항을 언급하면 **PRD.md 를 먼저 갱신**(§4.5-b)한 뒤
   living-doc 스킬로 나머지 문서를 전파하고 구현을 재개한다. PRD 갱신 없이 코드를 작성하지 않는다.
-  명시적으로는 `/wise-dev-standard:req-update` 로도 호출 가능.
+  명시적으로는 `/wise-dev-std:req-update` 로도 호출 가능.
 - 시험 사이클은 **test-runner 스킬 표준**을 그대로 따른다 / follow the test-runner standard.
 - 기존 차수 디렉터리 덮어쓰기 금지 / never overwrite existing iteration dirs.
 - 파괴적 명령·실시크릿·prod 배포 금지 / no destructive ops, real secrets, prod deploy.

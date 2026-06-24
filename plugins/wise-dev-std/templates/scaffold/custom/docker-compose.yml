@@ -1,0 +1,108 @@
+# {{PROJECT_NAME}} — custom (전체 인프라 옵션)
+# 사용할 서비스만 `profiles` 로 활성화하거나 불필요한 서비스를 삭제하세요.
+# resolve 단계에서 선택된 components 에 맞게 자동 정리됩니다.
+services:
+
+  # ── PostgreSQL (--profile postgres) ──────────────────────────
+  postgres:
+    profiles: ["postgres"]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-app}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── MySQL / MariaDB (--profile mysql) ─────────────────────────
+  mysql:
+    profiles: ["mysql"]
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app}
+    ports: ["3306:3306"]
+    volumes: ["mysqldata:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── MongoDB (--profile mongodb) ────────────────────────────────
+  mongodb:
+    profiles: ["mongodb"]
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-app}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-app}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-app}
+    ports: ["27017:27017"]
+    volumes: ["mongodata:/data/db"]
+
+  # ── MSSQL (--profile mssql) ────────────────────────────────────
+  mssql:
+    profiles: ["mssql"]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong@Passw0rd}
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+    ports: ["1433:1433"]
+    volumes: ["mssqldata:/var/opt/mssql"]
+
+  # ── Redis (--profile redis) ────────────────────────────────────
+  redis:
+    profiles: ["redis"]
+    image: redis:7.4-alpine
+    ports: ["6379:6379"]
+
+  # ── Kafka + Zookeeper (--profile kafka) ───────────────────────
+  zookeeper:
+    profiles: ["kafka"]
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports: ["2181:2181"]
+  kafka:
+    profiles: ["kafka"]
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on: [zookeeper]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports: ["9092:9092"]
+
+  # ── RabbitMQ (--profile rabbitmq) ─────────────────────────────
+  rabbitmq:
+    profiles: ["rabbitmq"]
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-app}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-app}
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI
+
+  # ── App (--profile app) ────────────────────────────────────────
+  api:
+    profiles: ["app"]
+    build: { context: ., dockerfile: Dockerfile }
+    env_file: [.env.${ENV:-dev}]
+    ports: ["8080:8080"]
+
+volumes:
+  pgdata:
+  mysqldata:
+  mongodata:
+  mssqldata:

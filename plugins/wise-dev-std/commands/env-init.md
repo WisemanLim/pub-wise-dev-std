@@ -4,7 +4,7 @@ argument-hint: "<profile-id> [--db sqlite|postgres]"
 allowed-tools: Read, Glob, Write, Edit, Bash
 ---
 
-# /wise-dev-standard:env-init
+# /wise-dev-std:env-init
 
 목표: 4개 환경(local/dev/staging/prod) 구성을 표준대로 생성. 플랫폼별로 불필요한 파일은 삭제.
 
