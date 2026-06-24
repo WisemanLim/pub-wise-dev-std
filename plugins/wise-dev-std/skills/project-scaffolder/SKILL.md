@@ -37,20 +37,72 @@ description: >
 ## 2. 파일 생성 규칙
 
 ### Makefile (공통 진입점, 원본 §5-2)
-프로파일 `makefile_targets` 를 타겟으로. 항상 포함:
+프로파일 `makefile_targets` 를 타겟으로. **아래 타겟 전체를 항상 포함**:
+
 ```makefile
-.PHONY: dev test build deploy up down
+.PHONY: dev test build deploy up down dc-logs dc-ps run stop restart logs ps \
+        local-all local-down dev-all dev-build dev-down preflight
 ENV ?= local
-up:    ; docker compose up -d                 # 인프라(datastore)만. app 서비스는 profiles:[app] 라 안 뜸
-down:  ; docker compose --profile app down --remove-orphans   # 모든 프로파일 컨테이너+네트워크 정리
-dev:   ; <profile.run_methods.direct.dev 또는 docker compose --profile app up>
+LOCAL_INFRA ?=   # local 모드 compose 서비스 목록. 비워두면 전체 infra. 예: LOCAL_INFRA=redis
+
+## 사전 호환성 점검 (env-init 전 실행 권장)
+preflight: ## 런타임·도구 버전 호환성 점검
+	# 언어별 버전 체크 + docker compose v2 확인 (정적 템플릿 참조)
+
+## infra (DB/캐시, app 제외)
+up:    ; docker compose up -d                    # 인프라만. app은 profiles:[app]라 안 뜸
+down:  ; docker compose --profile app down --remove-orphans
+
+## docker-compose 공통 유틸
+dc-logs: ; docker compose logs -f $(SVC)         # SVC= 으로 특정 서비스 지정
+dc-ps:   ; docker compose ps
+
+## local 직접 실행 (포그라운드, 단일)
+dev:   ; <profile.run_methods.direct.dev>
 test:  ; <makefile_targets.test>
-build: ; docker compose --profile app build   # app 이미지 빌드(Dockerfile 필요)
+build: ; docker compose --profile app build
 deploy:; <makefile_targets.deploy>
+
+## local 멀티프로세스 (PM2/honcho/goreman/overmind — 아래 항 참조)
+run:     ; <pm-manager> start <config>
+stop:    ; <pm-manager> stop
+restart: ; <pm-manager> restart
+logs:    ; <pm-manager> logs          # 프로세스 매니저 로그 (dc-logs 와 구분)
+ps:      ; <pm-manager> status
+
+## local-all: infra + 프로세스 매니저 한 번에
+local-all:   ## [local] docker infra + 프로세스 매니저 일괄 기동
+	docker compose up -d $(LOCAL_INFRA)
+	<pm-manager> start <config>
+local-down:  ## [local] 역순 종료
+	<pm-manager> stop || true
+	docker compose down --remove-orphans
+
+## dev/staging/prod: Docker 전체 스택
+dev-all:    ; docker compose --profile app up -d           # 기존 이미지 사용
+dev-build:  ; docker compose --profile app up -d --build   # 이미지 재빌드 후 기동
+dev-down:   ; docker compose --profile app down --remove-orphans
 ```
+
+타겟별 용도:
+
+| 타겟 | 용도 | 환경 |
+|------|------|------|
+| `preflight` | 런타임·도구 버전 사전 점검 | 모든 환경 (env-init 전) |
+| `up` / `down` | infra(DB/캐시)만 docker 기동/정리 | local |
+| `dc-logs` / `dc-ps` | docker compose 로그·컨테이너 상태 | 모든 환경 |
+| `dev` | 단일 프로세스 포그라운드 실행 | local |
+| `run` / `stop` / `restart` / `logs` / `ps` | 프로세스 매니저로 멀티 프로세스 관리 | local |
+| `local-all` / `local-down` | infra + 프로세스 매니저 일괄 기동/종료 | local |
+| `dev-all` | app+infra 컨테이너 기동 (빌드 없음) | dev/staging/prod |
+| `dev-build` | 이미지 빌드 후 app+infra 기동 | dev/staging/prod |
+| `dev-down` | app+infra 전체 정리 | dev/staging/prod |
+
 - **중요**: `up` 은 datastore 만 띄운다. app 서비스(build 컨텍스트 보유)는 compose 에서
   `profiles: [app]` 로 묶어, 코드/Dockerfile 미완 상태에서도 `make up` 이 빌드를 시도해 실패하지 않게 한다.
-- 전체 스택은 `make dev`(= `docker compose --profile app up`) 또는 직접실행(`pnpm dev`/`uv run`).
+- `local-all` 의 `LOCAL_INFRA`: SQLite 사용 시 postgres 불필요 → `LOCAL_INFRA=redis make local-all` 로 redis 만 기동.
+- `dev-all` vs `dev-build`: 코드 변경 없이 재시작은 `dev-all`, Dockerfile/소스 변경 후 재빌드는 `dev-build`.
+- `logs`(프로세스 매니저) vs `dc-logs`(docker compose)를 명확히 구분해 README 에 기술.
 - **local 멀티프로세스 타겟**(`run`/`stop`/`restart`/`logs`/`ps`)을 항상 포함한다 — 아래 항 참조.
   `dev` 는 단일·포그라운드 그대로 두고, `run` 이 프로세스 매니저로 web+worker 등을 함께 관리.
 
@@ -117,6 +169,30 @@ compose 에 `build:` 를 둔 모든 app/service 디렉터리에는 **그 디렉�
   ```
 - **Go (Gin)** — multi-stage `golang:1.23` → `gcr.io/distroless/base`; `CMD ["/server"]`.
 - **Rust (Axum)** — multi-stage `rust:1` → `debian:bookworm-slim`; `CMD ["/app/server"]`.
+- **C/C++ (CMake + vcpkg)** — multi-stage `ubuntu:24.04` build → `debian:bookworm-slim` runtime:
+  ```dockerfile
+  FROM ubuntu:24.04 AS builder
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential cmake ninja-build git curl zip unzip tar pkg-config \
+      libssl-dev libpq-dev libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+  ENV VCPKG_ROOT=/opt/vcpkg
+  RUN git clone --depth=1 https://github.com/microsoft/vcpkg /opt/vcpkg && \
+      /opt/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+  WORKDIR /src
+  COPY vcpkg.json CMakeLists.txt CMakePresets.json ./
+  RUN /opt/vcpkg/vcpkg install --triplet=x64-linux --no-print-usage
+  COPY . .
+  RUN cmake --preset release -B build/release && \
+      cmake --build build/release --parallel
+
+  FROM debian:bookworm-slim AS runtime
+  RUN apt-get update && apt-get install -y --no-install-recommends \
+      libssl3 libpq5 libsqlite3-0 ca-certificates && rm -rf /var/lib/apt/lists/*
+  COPY --from=builder /src/build/release/{{PROJECT_NAME}} /app/server
+  EXPOSE 8080
+  CMD ["/app/server"]
+  ```
+  VCPKG_ROOT 레이어 캐시 팁: `vcpkg.json` 과 `CMakeLists.txt` 를 먼저 COPY 후 `vcpkg install`(의존성 고정) → 이후 소스 COPY. 의존성 변경 없으면 vcpkg 레이어 재사용.
 
 포트/EXPOSE/CMD 는 compose 의 해당 서비스 포트·dev 커맨드와 일치시킨다. `|| true` 는 lockfile/코드
 미완 스캐폴드에서도 이미지 빌드가 통과하도록 둔 스텁 — 구현 단계에서 `--frozen-lockfile` 등으로 강화.
@@ -129,6 +205,12 @@ compose 에 `build:` 를 둔 모든 app/service 디렉터리에는 **그 디렉�
     앱 코드 디렉터리에 맞춰 `packages` 지정(`app`/`src/<pkg>` 등). 라이브러리 아닌 순수 앱이면 `[tool.uv] package = false` 도 가능.
 - Go: `go.mod` + `cmd/server/main.go` 최소 Gin 핸들러.
 - Rust: `Cargo.toml` + `src/main.rs` 최소 Axum 핸들러 + tokio.
+- C/C++: `CMakeLists.txt`(cmake_minimum_required 3.21, project, add_executable) +
+  `CMakePresets.json`(debug/release 프리셋, `CMAKE_EXPORT_COMPILE_COMMANDS=ON`) +
+  `vcpkg.json`(dependencies: drogon, gtest, sqlite3 등) +
+  `src/main.cpp`(최소 Drogon 또는 cpp-httplib 핸들러) +
+  `.clang-format`(BasedOnStyle: Google 또는 LLVM) +
+  `Procfile.dev`(`web: ./build/debug/{{PROJECT_NAME}}` + worker 주석 예시).
 
 ### .env.{local,dev,staging,prod}
 `environments` 매트릭스대로:
@@ -151,7 +233,7 @@ test/
 ```
 - `test/dev-env/scenario.md` 는 프로파일 기준 케이스로 채운다: 의존성 설치, `make up`, DB 연결,
   헬스 체크, `make test` 동작. Fill with profile-based cases (deps, compose up, DB, health, make test).
-- `test/impl/` 는 비워 둔다(구현 시 `/wise-dev-std:implement` 가 `<Nth>/` 생성).
+- `test/impl/` 는 비워 둔다(구현 시 `/wise-dev-standard:implement` 가 `<Nth>/` 생성).
   Leave `test/impl/` empty; `implement` creates `<Nth>/` per iteration.
 - `.gitignore` 에 `test/**/logs/` 를 추가하도록 안내(원본 로그 비커밋) / suggest ignoring raw logs.
 
@@ -232,7 +314,7 @@ SDK/툴체인 확인(flutter doctor / xcodebuild -version / sdkmanager / expo --
 프로파일 `test/`(Flutter `test/`, RN `__tests__/`, iOS `AppTests/`, Android `app/src/test`)와 시험표준 `test/dev-env`·`test/impl` 은 공존한다.
 
 ## 3. 멀티 IDE 준용
-스캐폴딩 직후, 사용자가 원하면 `/wise-dev-std:standardize` 를 안내해
+스캐폴딩 직후, 사용자가 원하면 `/wise-dev-standard:standardize` 를 안내해
 선택된 표준을 `AGENTS.md` + `.cursor/rules/` 로 내보내 Cursor/Antigravity 가
 동일 표준을 따르게 한다.
 

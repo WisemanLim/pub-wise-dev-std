@@ -4,13 +4,41 @@ argument-hint: "<profile-id> [--db sqlite|postgres]"
 allowed-tools: Read, Glob, Write, Edit, Bash
 ---
 
-# /wise-dev-std:env-init
+# /wise-dev-standard:env-init
 
 목표: 4개 환경(local/dev/staging/prod) 구성을 표준대로 생성. 플랫폼별로 불필요한 파일은 삭제.
 
 인자: `$ARGUMENTS`
 - `<profile-id>`: 환경 매트릭스를 가져올 프로파일.
 - `--db`: 강제 DB. 미지정 시 프로파일 매트릭스(local=sqlite, dev+=postgres).
+
+---
+
+## §-1 사전 호환성 점검 / Preflight Compatibility Check
+
+**env-init 실행 전 반드시 `make preflight` 를 실행**해 런타임·도구 버전 호환성을 확인한다.
+스캐폴딩 직후 패키지 버전 비호환은 100% 오류의 주원인이므로 이 단계를 건너뛰지 않는다.
+
+```bash
+make preflight
+```
+
+preflight 실패 시 아래 표를 참조해 해결 후 재실행:
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| `FAIL: Node … 22+ 필요` | Node < 22 — corepack/pnpm 최신 버전 호환 불가 | `nvm install 22` 또는 Node 공식 사이트에서 22 LTS 설치 |
+| `FAIL: pnpm 미설치` | corepack 비활성화 또는 pnpm 미설치 | `corepack enable && corepack prepare pnpm@latest --activate` |
+| `FAIL: uv 미설치` | uv 패키지 매니저 없음 | `brew install uv` 또는 `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| `FAIL: Python 3.11+ 필요` | 시스템 Python 구버전 | `uv python install 3.12` 또는 pyenv로 3.12 설치 |
+| `FAIL: docker compose v2 필요` | docker-compose v1(구버전) 설치됨 | Docker Desktop 4.x+ 업그레이드 (`docker compose` = v2) |
+| `WARN: goreman 미설치` | goreman 없음 (선택적 도구) | `go install github.com/mattn/goreman@latest` |
+| `WARN: overmind 미설치` | overmind + tmux 없음 (선택적 도구) | `brew install overmind tmux` |
+| `FAIL: Java 21+ 필요` | JDK 구버전 | `brew install openjdk@21` 또는 sdkman |
+| `FAIL: .NET 8+ 필요` | .NET SDK 구버전 | `brew install dotnet` 또는 공식 사이트 SDK 8 설치 |
+| Gradle + JDK 버전 불일치 | JDK 25 = Gradle 9.5.1+ 필요 | `scaffold §troubleshoot-android` Gradle 호환표 참조 |
+
+preflight 경고(WARN)는 선택적 도구로 `make run`(멀티프로세스) 사용 시에만 필요. `make dev`(단일 실행)는 무시 가능.
 
 ---
 

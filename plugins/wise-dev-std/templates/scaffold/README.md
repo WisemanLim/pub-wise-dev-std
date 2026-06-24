@@ -12,11 +12,12 @@
 - 기존 파일 보존: 대상에 동일 파일이 있으면 덮어쓰지 않고 `*.generated` 로(스캐폴더 §2.6 규칙 동일).
 
 ## 커버리지 / Coverage
-- 서버 / server: `node-next-nest`, `python-fastapi`, `go-gin`, `rust-axum`
+- 서버 / server: `node-next-nest`, `python-fastapi`, `go-gin`, `rust-axum`, `cpp-cmake`
 - 모바일 / mobile: `ios-swiftui`, `android-compose`, `flutter-app`, `react-native-app`
 
 각 세트는 핵심 결정 파일(Makefile · compose(서버) · 매니페스트 · 진입점 · `.env.local`/플레이버 · CI · Dockerfile/Fastfile)을 포함한다.
-서버 세트는 **local 멀티프로세스 매니저 설정**도 포함한다 — node `ecosystem.config.cjs`(PM2), python/go/rust `Procfile.dev`(honcho/goreman/overmind). `make run/stop/logs` 로 호스트 직접 실행 시 web+worker 를 관리(compose `app` 프로파일과 별개).
+서버 세트는 **local 멀티프로세스 매니저 설정**도 포함한다 — node `ecosystem.config.cjs`(PM2), python/go/rust/cpp `Procfile.dev`(honcho/goreman/overmind/goreman). `make run/stop/logs` 로 호스트 직접 실행 시 web+worker 를 관리(compose `app` 프로파일과 별개).
+`cpp-cmake` 는 추가로 `CMakePresets.json`·`vcpkg.json`·`.clang-format` 을 포함한다 — `make configure` 로 `compile_commands.json` 생성(clangd/IDE 연동), `make sanitize` 로 AddressSanitizer 실행.
 **`README.md`(한국어) · `README.en.md`(영문)** 도 각 세트에 포함된다.
 두 파일은 기술 스택, 사전 요구사항, 빠른 시작, `make` 전체 타겟 설명, 환경 변수, 빌드·배포·실행 절차, 디렉터리 구조를 담으며 스캐폴딩 플러그인/프로파일 정보를 문서 상단에 명시한다.
 나머지 디렉터리(`scaffold.tree`)와 환경 4종(`env-init`)·도메인 `COMPLIANCE.md` 는 종전 규칙으로 보완한다.
