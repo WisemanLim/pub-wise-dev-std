@@ -98,7 +98,7 @@ services:
   api:
     profiles: ["app"]
     build: { context: ., dockerfile: Dockerfile }
-    env_file: [.env.${ENV:-dev}]
+    env_file: [".env.${ENV:-dev}"]
     ports: ["8080:8080"]
 
 volumes:
