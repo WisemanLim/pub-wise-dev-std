@@ -110,7 +110,7 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 │   │   ├── appsettings.json
 │   │   └── appsettings.Development.json
 │   └── Core/                # 도메인 / 비즈니스 로직
-├── tests/
+├── test/                    # 모든 테스트는 test/ 로 통일 (+ 시험표준 dev-env/impl)
 │   └── Api.Tests/           # xUnit 통합 테스트
 ├── deploy/helm/             # Helm 차트
 ├── .github/workflows/       # CI 파이프라인

@@ -262,11 +262,10 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 │   └── models/               # Domain models
 ├── include/
 │   └── {{PROJECT_NAME}}/     # Public headers
-├── tests/
-│   └── unit/                 # GTest unit tests
-├── test/                     # Test standard (test-runner)
-│   ├── dev-env/              # Environment verification scenario
-│   └── impl/                 # Per-iteration scenario & results
+├── test/                     # All tests unified under test/
+│   ├── unit/                 # GTest unit tests
+│   ├── dev-env/              # Test standard: environment verification scenario
+│   └── impl/                 # Test standard: per-iteration scenario & results
 ├── deploy/helm/              # Helm chart
 ├── .github/workflows/        # CI pipeline
 ├── CMakeLists.txt            # Root CMake

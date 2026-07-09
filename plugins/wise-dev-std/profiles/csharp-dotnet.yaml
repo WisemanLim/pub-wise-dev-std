@@ -69,7 +69,6 @@ scaffold:
     - "src/Api/Program.cs"
     - "src/Api/appsettings.json"
     - "src/Api/appsettings.Development.json"
-    - ".env.local"
     - ".github/workflows/ci.yml"
 
 testing:

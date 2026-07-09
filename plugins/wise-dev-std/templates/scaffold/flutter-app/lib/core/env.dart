@@ -1,6 +1,7 @@
-// {{PROJECT_NAME}} — flavor → API base (build-time via --dart-define)
+// {{PROJECT_NAME}} — flavor → API base (build-time via --dart-define-from-file=.env.local)
 class Env {
+  static const appEnv = String.fromEnvironment('APP_ENV', defaultValue: 'local');
   static const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
-  static const apiBase =
-      String.fromEnvironment('API_BASE', defaultValue: 'http://localhost:8000');
+  static const apiBaseUrl =
+      String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000');
 }

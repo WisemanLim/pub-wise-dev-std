@@ -28,7 +28,10 @@ description: >
    사용자 지정)으로 치환한다 — LLM 생성 대신 결정적 출력. 템플릿에 없는 파일/디렉터리만 아래 §2 규칙으로 **보완 생성**.
    템플릿 디렉터리가 없으면(미커버 프로파일) 종전대로 `scaffold.files` 전체를 §2 규칙으로 생성(fallback).
    복사 시에도 §2.6(기존 파일 보존 → `*.generated`) 규칙 동일 적용. (참조: `templates/scaffold/README.md`)
-4. 환경별 `.env.*` 를 `environments` 매트릭스로 생성한다.
+4. 환경별 `.env.*` 를 `environments` 매트릭스로 생성한다. **단, 아래 경우는 생성하지 않는다:**
+   - `native-mobile` (ios-swiftui · android-compose): xcconfig / BuildConfig / `local.properties` 사용 — `.env.*` 전혀 생성 금지.
+   - `java-spring`: Spring Profile (`application-local.yml` 등) 사용 — `.env.*` 생성 금지.
+   - `csharp-dotnet`: `appsettings.Development.json` + `dotnet user-secrets` 사용 — `.env.*` 생성 금지.
 5. 도메인 오버레이가 있으면 `COMPLIANCE.md` 를 생성하고(§2 도메인 항), `stack_overrides` 의
    추가 서비스(Kafka/PostGIS/TimescaleDB/FHIR 등)를 compose 에 주석 스텁으로 포함한다.
 6. 생성 후 트리(`find` 또는 직접 나열)와 다음 명령(`make dev`)을 안내한다.
@@ -231,6 +234,14 @@ test/
     ├── scenario.md    # 표준 환경 검증 시나리오 / env verification scenario
     └── logs/.gitkeep
 ```
+
+> **모든 테스트는 `test/` 하나로 통일 / all tests under a single `test/`.**
+> 언어별 유닛/소스 테스트도 `tests/` 가 아니라 **`test/`** 하위에 둔다(예: pytest `test/test_*.py`,
+> GTest `test/unit/`, xUnit `test/Api.Tests/`). `tests/`(복수형) 디렉터리는 **생성 금지** — 시험표준
+> `test/dev-env`·`test/impl` 과 한 트리에서 공존한다. 테스트 러너는 `test/` 를 탐색하도록 설정
+> (pytest `testpaths=["test"]`, CMake `add_subdirectory(test/unit)`, .sln 은 `test/` 경로).
+> 예외: 프레임워크가 디렉터리명을 강제하는 경우만 유지 — RN `__tests__/`, iOS `AppTests/`,
+> Android `app/src/test`, Go/Rust in-package `_test.go`/`#[cfg(test)]`.
 - `test/dev-env/scenario.md` 는 프로파일 기준 케이스로 채운다: 의존성 설치, `make up`, DB 연결,
   헬스 체크, `make test` 동작. Fill with profile-based cases (deps, compose up, DB, health, make test).
 - `test/impl/` 는 비워 둔다(구현 시 `/wise-dev-std:implement` 가 `<Nth>/` 생성).
@@ -306,17 +317,33 @@ TestFlight/Play 배포 lane 스켈레톤을 생성(실행 아님). 예:
 - 단계: checkout → SDK 셋업(flutter/xcode/jdk+android-sdk/node+expo) → install → lint/analyze → test → build(미서명/디버그). 배포 lane 은 태그/수동 트리거 주석으로.
 
 ### gitignore
-`languages.primary` → `templates/gitignore/{swift,android,flutter,react-native}.gitignore`(매핑: swift→swift, kotlin→android, dart→flutter, node(RN)→react-native + `_common`). 실제 병합은 `/implement` 가 수행.
+`languages.primary` → `templates/gitignore/{swift,android,flutter,react-native}.gitignore`(매핑: swift→swift, kotlin→android, dart→flutter, node(RN)→react-native + `_common`). 병합은 §2.7 규칙으로 **스캐폴딩 시점에 수행**하고, `/implement` 는 누락 섹션만 멱등 보강한다.
 
 ### test/ 골격
 §2 와 동일하게 `test/README.md` + `test/dev-env/{scenario.md,logs/.gitkeep}` 생성. 단 **dev-env 시나리오는 모바일 기준**:
 SDK/툴체인 확인(flutter doctor / xcodebuild -version / sdkmanager / expo --version) → 시뮬레이터·에뮬레이터 부팅 → 디버그 빌드 성공 → `make test` 동작. (DB 연결·compose up 케이스는 제외.)
 프로파일 `test/`(Flutter `test/`, RN `__tests__/`, iOS `AppTests/`, Android `app/src/test`)와 시험표준 `test/dev-env`·`test/impl` 은 공존한다.
 
+## 2.7 `.gitignore` 조립 (멱등) — 단일 규칙 / canonical rule
+
+스캐폴딩 시점에 생성하고, `/implement` 는 누락 섹션만 보강한다. scaffold·implement 모두 이 규칙을 따른다.
+
+- **언어 결정**: 프로파일 `languages.primary` + `languages.also`
+  (예: node-next-nest→node; python-fastapi→python; bio-rag-research→python+node+go+rust).
+  모바일 매핑: ios-swiftui→`swift`, android-compose→`android`, flutter-app→`flutter`,
+  react-native-app→`react-native`+`node`.
+- **조립 순서**: `templates/gitignore/_common.gitignore` → `_platform.gitignore`(macOS·Windows·Linux 모두)
+  → 언어별 `templates/gitignore/<lang>.gitignore`(`node|python|go|rust|c-cpp|swift|android|flutter|react-native`).
+  셸에서는 `templates/gitignore/_combine.sh <lang...>` 사용 가능.
+- **멱등**: 각 프래그먼트의 헤더 라인(`# ===== ... =====`)을 센티넬로 사용.
+  `.gitignore` 없으면 생성, 있으면 **누락 섹션만 추가** — 기존 사용자 항목 보존, 삭제·재정렬 금지.
+- **보고**: 추가한 섹션 목록.
+- `test/**/logs/` 포함(원본 로그 비커밋).
+
 ## 3. 멀티 IDE 준용
 스캐폴딩 직후, 사용자가 원하면 `/wise-dev-std:standardize` 를 안내해
-선택된 표준을 `AGENTS.md` + `.cursor/rules/` 로 내보내 Cursor/Antigravity 가
-동일 표준을 따르게 한다.
+표준을 `AGENTS.md` + IDE별 규칙 파일로 내보낸다
+(Cursor·Windsurf·Copilot·Gemini·Cline·Roo·Antigravity — standardize 커맨드 참조).
 
 ## 4. 안전 규칙
 - 네트워크/설치 명령 실행 금지(파일 생성만). 설치는 사용자가 `make dev`/`uv sync`/`pnpm i` 로.

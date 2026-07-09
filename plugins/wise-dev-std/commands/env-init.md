@@ -36,7 +36,7 @@ preflight 실패 시 아래 표를 참조해 해결 후 재실행:
 | `WARN: overmind 미설치` | overmind + tmux 없음 (선택적 도구) | `brew install overmind tmux` |
 | `FAIL: Java 21+ 필요` | JDK 구버전 | `brew install openjdk@21` 또는 sdkman |
 | `FAIL: .NET 8+ 필요` | .NET SDK 구버전 | `brew install dotnet` 또는 공식 사이트 SDK 8 설치 |
-| Gradle + JDK 버전 불일치 | JDK 25 = Gradle 9.5.1+ 필요 | `scaffold §troubleshoot-android` Gradle 호환표 참조 |
+| Gradle + JDK 버전 불일치 | JDK 25 = Gradle 9.5.1+ 필요 | project-scaffolder 스킬 `references/troubleshoot-mobile.md` Gradle 호환표 참조 |
 
 preflight 경고(WARN)는 선택적 도구로 `make run`(멀티프로세스) 사용 시에만 필요. `make dev`(단일 실행)는 무시 가능.
 
@@ -63,8 +63,21 @@ preflight 경고(WARN)는 선택적 도구로 `make run`(멀티프로세스) 사
    - `.env.dev` — postgres+redis, compose=true.
    - `.env.staging` — prod 동등 구성.
    - `.env.prod` — **값 대신 키 목록만**(Vault/Secret Manager 주입 전제).
-2. `docker-compose.override.yml` (dev/staging 용 서비스: postgres/redis[/pgvector/neo4j/minio]).
-3. `.env.example` (커밋용, placeholder만) + `.gitignore` 에 `.env.local/.env.dev/.env.staging/.env.prod` 추가.
+2. **포트·바인드 IP·기본 계정 키(필수)** — 모든 환경 파일에 아래 키를 **반드시** 넣는다.
+   하드코딩 금지: compose 의 포트/계정은 전부 `${VAR:-default}` 로 참조되고, 값은 `.env.*` 가 단일 출처(SSOT).
+   | 키 | 기본값 | 설명 |
+   |----|--------|------|
+   | `BIND_HOST` | `127.0.0.1` | 포트 바인드 IP. 로컬 전용(안전). LAN/외부 노출 시 `0.0.0.0` |
+   | `POSTGRES_PORT` | `5432` | 호스트 postgres 포트 (충돌 시 변경) |
+   | `REDIS_PORT` | `6379` | 호스트 redis 포트 |
+   | `API_PORT` | 프레임워크별 (fastapi 8000 · go/java/csharp 8080 · rust 3000 · nest 3001) | 서비스 노출 포트 |
+   | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `app` | 기본 계정. **실 비밀번호는 placeholder** — Vault/Secret Manager 주입 |
+   - 추가 데이터스토어(mysql/mongo/mssql/kafka/rabbitmq/minio/neo4j) 사용 시 동일 규칙으로 `<SVC>_PORT` + 계정 키를 추가.
+   - `Makefile` 은 `docker compose` 대신 `$(DC)`(= `docker compose --env-file .env.$(ENV)`) 를 쓰므로,
+     `make up ENV=dev` 시 `.env.dev` 의 포트/IP/계정이 그대로 주입된다. 하드코딩 값 절대 금지.
+3. `docker-compose.override.yml` (dev/staging 용 서비스: postgres/redis[/pgvector/neo4j/minio]).
+   - override 의 포트도 `${BIND_HOST:-127.0.0.1}:${<SVC>_PORT:-<default>}:<container>` 형식으로만 노출.
+4. `.env.example` (커밋용, placeholder만 — 위 필수 키 전부 포함) + `.gitignore` 에 `.env.local/.env.dev/.env.staging/.env.prod` 추가.
 
 ---
 
@@ -115,7 +128,7 @@ enum Env {
 #### §android-compose — local.properties + BuildConfig
 
 1. `local.properties` — `sdk.dir` 없거나 placeholder(`<YOUR_ANDROID_SDK_PATH>`) 상태면 `make setup` 실행 안내.
-   `make setup` 이 자동 감지한다 (`§troubleshoot-android` 참조).
+   `make setup` 이 자동 감지한다 (project-scaffolder `references/troubleshoot-mobile.md` 참조).
 
 2. `app/build.gradle.kts` 의 `productFlavors` 에서 `buildConfigField("String", "API_BASE_URL", ...)` 가
    프로파일 `environments` 와 다르면 **차이만 보고** — 덮어쓰기 금지, 수정 제안만.

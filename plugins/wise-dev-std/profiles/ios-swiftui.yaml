@@ -70,6 +70,7 @@ scaffold:
     - "App/Sources/ContentView.swift"
     - "App/Sources/Core/Env.swift"
     - "Config/Debug.xcconfig"
+    - "Config/Staging.xcconfig"
     - "Config/Release.xcconfig"
     - "Makefile"
     - "fastlane/Fastfile"

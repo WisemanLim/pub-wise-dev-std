@@ -150,7 +150,7 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 │   ├── services/        # 비즈니스 로직
 │   ├── models/          # SQLAlchemy 모델
 │   └── schemas/         # Pydantic 스키마
-├── tests/
+├── test/                # 모든 테스트는 test/ 로 통일 (유닛 test_*.py + 시험표준 dev-env/impl)
 ├── deploy/helm/         # Helm 차트
 ├── .github/workflows/   # CI 파이프라인
 ├── docker-compose.yml   # 개발 인프라

@@ -151,7 +151,7 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 │   ├── services/        # business logic
 │   ├── models/          # SQLAlchemy models
 │   └── schemas/         # Pydantic schemas
-├── tests/
+├── test/                # All tests unified under test/ (unit test_*.py + test standard dev-env/impl)
 ├── deploy/helm/         # Helm chart
 ├── .github/workflows/   # CI pipeline
 ├── docker-compose.yml   # dev infrastructure

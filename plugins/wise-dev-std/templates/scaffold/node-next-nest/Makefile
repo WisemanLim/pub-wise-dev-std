@@ -2,6 +2,8 @@
 .PHONY: dev test build deploy up down dc-logs dc-ps run stop restart logs ps \
         local-all local-down dev-all dev-build dev-down preflight
 ENV ?= local
+ENV_FILE := $(wildcard .env.$(ENV))
+DC := docker compose $(if $(ENV_FILE),--env-file $(ENV_FILE),)   # .env.$(ENV) 존재 시 포트/IP/계정 주입
 PM ?= pnpm exec pm2
 # local 모드에서 기동할 compose 서비스만 지정 (비워두면 전체 infra).
 # SQLite 사용 시 postgres 불필요 → 예: LOCAL_INFRA=redis make local-all
@@ -13,22 +15,22 @@ preflight:  ## 런타임·도구 버전 호환성 점검
 	@command -v node   >/dev/null 2>&1 || (echo "FAIL: Node.js 미설치" && exit 1)
 	@command -v pnpm   >/dev/null 2>&1 || (echo "FAIL: pnpm 미설치 — corepack enable 또는 npm i -g pnpm" && exit 1)
 	@command -v docker >/dev/null 2>&1 || (echo "FAIL: Docker 미설치" && exit 1)
-	@docker compose version >/dev/null 2>&1 || (echo "FAIL: docker compose v2 필요 (docker-compose v1 아님)" && exit 1)
+	@$(DC) version >/dev/null 2>&1 || (echo "FAIL: docker compose v2 필요 (docker-compose v1 아님)" && exit 1)
 	@node -e "const v=+process.version.slice(1).split('.')[0]; if(v<22){console.error('FAIL: Node '+process.version+' — 22+ 필요 (corepack/pnpm 호환)');process.exit(1)}" || exit 1
 	@pnpm --version | awk -F. '{if($$1+0<9) print "WARN: pnpm " $$0 " — 9+ 권장"}'
 	@echo "=== Preflight OK ==="
 
 ## --- infra (DB/캐시, app 제외) ---
 up:    ## docker infra 기동 (postgres/redis — app 컨테이너 제외)
-	docker compose up -d
+	$(DC) up -d
 down:  ## infra 정리
-	docker compose down --remove-orphans
+	$(DC) down --remove-orphans
 
 ## --- docker-compose 공통 유틸 ---
-dc-logs:  ## docker compose 로그 추적 (SVC=<service> 로 특정 서비스 지정)
-	docker compose logs -f $(SVC)
-dc-ps:    ## docker compose 컨테이너 상태
-	docker compose ps
+dc-logs:  ## $(DC) 로그 추적 (SVC=<service> 로 특정 서비스 지정)
+	$(DC) logs -f $(SVC)
+dc-ps:    ## $(DC) 컨테이너 상태
+	$(DC) ps
 
 ## --- local 직접 실행 (포그라운드, 단일 프로세스) ---
 dev:    ## 호스트 직접 실행 (포그라운드) / host run (워크스페이스 인식)
@@ -50,16 +52,16 @@ ps:      ## PM2 프로세스 상태
 
 ## --- local-all: infra + PM2 한 번에 기동 ---
 local-all:   ## [local] infra(docker) + PM2 일괄 기동 / docker up + managed procs
-	docker compose up -d $(LOCAL_INFRA)
+	$(DC) up -d $(LOCAL_INFRA)
 	$(PM) start ecosystem.config.cjs
 local-down:  ## [local] PM2 종료 + infra 정리 (역순)
 	$(PM) delete ecosystem.config.cjs || true
-	docker compose down --remove-orphans
+	$(DC) down --remove-orphans
 
 ## --- dev/staging/prod: Docker 전체 스택 ---
 dev-all:    ## [dev] infra + app 컨테이너 기동 (기존 이미지 사용)
-	docker compose --profile app up -d
+	$(DC) --profile app up -d
 dev-build:  ## [dev] 이미지 빌드 후 기동 (코드 변경 후 재빌드 포함)
-	docker compose --profile app up -d --build
+	$(DC) --profile app up -d --build
 dev-down:   ## [dev] app + infra 전체 정리
-	docker compose --profile app down --remove-orphans
+	$(DC) --profile app down --remove-orphans

@@ -4,5 +4,5 @@
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-app}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-app}
       MONGO_INITDB_DATABASE: ${MONGO_DB:-app}
-    ports: ["27017:27017"]
+    ports: ["${BIND_HOST:-127.0.0.1}:${MONGODB_PORT:-27017}:27017"]
     volumes: ["mongodata:/data/db"]

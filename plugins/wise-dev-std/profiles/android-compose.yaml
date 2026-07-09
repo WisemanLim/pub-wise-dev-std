@@ -71,6 +71,7 @@ scaffold:
     - "app/src/main/java/MainActivity.kt"
     - "Makefile"
     - "fastlane/Fastfile"
+    - "keystore.properties"
     - ".github/workflows/ci.yml"
 
 testing:

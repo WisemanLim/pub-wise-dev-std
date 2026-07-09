@@ -16,6 +16,11 @@ Apply the same test cycle after standard env setup, and on every implementation 
 
 프로젝트 루트 이하 `test/` 에 저장한다. Stored under `test/` at project root.
 
+> **`test/` 단일 트리로 통일 / single unified `test/`.** 시험표준(dev-env·impl)뿐 아니라 언어별
+> 유닛/소스 테스트도 `test/` 하위에 둔다. **`tests/`(복수형) 디렉터리는 생성 금지** — 러너는 `test/` 를
+> 탐색하도록 설정(pytest `testpaths=["test"]`, CMake `add_subdirectory(test/unit)`).
+> 예외(프레임워크 강제): RN `__tests__/`, iOS `AppTests/`, Android `app/src/test`, Go/Rust in-package.
+
 ```
 test/
 ├── README.md                 # 시험 표준 설명 / testing standard overview

@@ -59,7 +59,7 @@ make dev
 ├── src/
 │   ├── Api/                 # ASP.NET Core Web API entrypoint
 │   └── Core/                # Domain / business logic
-├── tests/
+├── test/                    # All tests unified under test/ (+ test standard dev-env/impl)
 │   └── Api.Tests/           # xUnit integration tests
 ├── deploy/helm/
 ├── .github/workflows/

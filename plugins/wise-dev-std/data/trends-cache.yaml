@@ -21,6 +21,9 @@ runtimes:
   dart:   { stable: "3.6", note: "Flutter 동봉 SDK", verify: true }
   kotlin: { stable: "2.1", note: "K2 컴파일러", verify: true }
   swift:  { stable: "6.0", note: "Swift 6 동시성", verify: true }
+  java:   { lts: "21", note: "LTS 21 권장 (Spring Boot 3.x 기준)", verify: true }
+  csharp: { stable: "12", dotnet_lts: "8.0", note: ".NET 8 LTS", verify: true }
+  cpp:    { standard: "C++20", cmake_min: "3.28", note: "C++20 + CMake presets", verify: true }
 
 # ── 프레임워크 메이저 핀 / framework majors (profiles/*.yaml 과 연동) ─────────
 frameworks:
@@ -32,6 +35,9 @@ frameworks:
   flutter:     { major: "3.27+", profile: flutter-app, verify: true }
   expo_sdk:    { major: "52", react_native: "0.77", profile: react-native-app, verify: true }
   compose_bom: { major: "2025.x", profile: android-compose, verify: true }
+  spring_boot: { major: "3.4", profile: java-spring, verify: true }
+  aspnet_core: { major: "8.0", profile: csharp-dotnet, verify: true }
+  drogon:      { major: "1.9", profile: cpp-cmake, verify: true }
 
 datastores:
   postgres: { major: "17", verify: true }

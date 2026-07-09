@@ -72,7 +72,6 @@ scaffold:
     - "src/main/java/com/example/app/Application.java"
     - "src/main/resources/application.yml"
     - "src/main/resources/application-local.yml"
-    - ".env.local"
     - ".github/workflows/ci.yml"
 
 testing:

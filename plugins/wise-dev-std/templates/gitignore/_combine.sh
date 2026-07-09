@@ -24,7 +24,7 @@ declare -A FRAGMENT_MAP=(
   [go]="go.gitignore"
   [rust]="rust.gitignore"
   [java]="java.gitignore"
-  [kotlin]="java.gitignore"
+  [kotlin]="android.gitignore"  # 플러그인 내 kotlin = android-compose (문서 매핑과 일치)
   [csharp]="csharp.gitignore"
   [swift]="swift.gitignore"
   [android]="android.gitignore"

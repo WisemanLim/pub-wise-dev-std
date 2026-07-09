@@ -4,6 +4,7 @@ import Constants from "expo-constants";
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, string>;
 
 export const Env = {
+  appEnv: extra.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? "local",
   flavor: extra.flavor ?? process.env.EXPO_PUBLIC_FLAVOR ?? "development",
-  apiBase: extra.apiBase ?? process.env.EXPO_PUBLIC_API_BASE ?? "http://localhost:8000",
+  apiBaseUrl: extra.apiBaseUrl ?? process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
 };

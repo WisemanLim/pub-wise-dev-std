@@ -262,11 +262,10 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 │   └── models/               # 도메인 모델
 ├── include/
 │   └── {{PROJECT_NAME}}/     # 공개 헤더
-├── tests/
-│   └── unit/                 # GTest 유닛 테스트
-├── test/                     # 시험 표준 (test-runner)
-│   ├── dev-env/              # 환경 검증 시나리오
-│   └── impl/                 # 구현 이터레이션별 시나리오·결과
+├── test/                     # 모든 테스트는 test/ 로 통일
+│   ├── unit/                 # GTest 유닛 테스트
+│   ├── dev-env/              # 시험표준: 환경 검증 시나리오
+│   └── impl/                 # 시험표준: 구현 이터레이션별 시나리오·결과
 ├── deploy/helm/              # Helm 차트
 ├── .github/workflows/        # CI 파이프라인
 ├── CMakeLists.txt            # CMake 루트

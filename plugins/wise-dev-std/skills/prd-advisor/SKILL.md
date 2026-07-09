@@ -6,8 +6,7 @@ description: >
   애자일 One-Page PRD 를 기본 축으로, `--full` 시 풀스펙(아키텍처·NFR·데이터·규제·Epic) 2단계 확장.
   업종(KSIC 대분류)을 입력하면 domains/*.yaml 오버레이로 성공지표·비기능요구사항 후보를 자동 제안한다.
   "PRD 작성", "PRD 초안", "요구사항 문서", "기획서 도와줘", "PRD template", "write a PRD",
-  "product requirements" 요청 시 사용. 근거: .doc/Perplexity-PRD 작성을 위한 기법 조사 및 비교, 추천.md.
-  생성 후 stack-advisor(recommend) 흐름으로 이어진다.
+  "product requirements" 요청 시 사용. 생성 후 stack-advisor(recommend) 흐름으로 이어진다.
 ---
 
 # PRD Advisor — PRD 작성 도우미 지식 베이스
