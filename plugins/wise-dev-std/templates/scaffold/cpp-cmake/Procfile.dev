@@ -1,0 +1,7 @@
+# {{PROJECT_NAME}} — Procfile (local 멀티프로세스 / goreman)
+# 사전: go install github.com/mattn/goreman@latest
+# 실행: make run  (= goreman -f Procfile.dev start, 빌드 포함) — 통합 로그
+# 상태: make ps   (별도 터미널: goreman run status)
+web: ./build/debug/{{PROJECT_NAME}}
+# 워커 예시(필요 시 주석 해제 — 큐 소비자/배치):
+# worker: ./build/debug/{{PROJECT_NAME}}-worker

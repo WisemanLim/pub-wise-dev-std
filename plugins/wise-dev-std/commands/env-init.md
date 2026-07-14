@@ -78,6 +78,18 @@ preflight 경고(WARN)는 선택적 도구로 `make run`(멀티프로세스) 사
 3. `docker-compose.override.yml` (dev/staging 용 서비스: postgres/redis[/pgvector/neo4j/minio]).
    - override 의 포트도 `${BIND_HOST:-127.0.0.1}:${<SVC>_PORT:-<default>}:<container>` 형식으로만 노출.
 4. `.env.example` (커밋용, placeholder만 — 위 필수 키 전부 포함) + `.gitignore` 에 `.env.local/.env.dev/.env.staging/.env.prod` 추가.
+5. **local 멀티프로세스 구성 검증/보완 (service 전용)** — scaffold 가 만든 프로세스 매니저 구성을 확인하고 누락 시 생성:
+   - 프로파일 `run_methods.direct.local_pm` 기준 설정 파일 존재 확인:
+     PM2=`ecosystem.config.cjs` (node) · honcho/goreman/overmind=`Procfile.dev` (python/go/java/c#/c++/rust).
+   - 누락 시 `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/` 에서 복사(+`{{PROJECT_NAME}}` 치환).
+     템플릿에도 없으면 project-scaffolder 스킬 "local 멀티프로세스 매니저" 항 규칙으로 생성
+     (web 1줄 + worker 주석 예시).
+   - `Makefile` 에 `run/stop/restart/logs/ps` 타겟 존재 확인, 누락 시 스킬 규칙대로 보강.
+   - 설정 파일의 포트는 `.env.local` 의 `API_PORT` 등과 일치해야 함 — 불일치 시 보고 후 정정.
+   - 매니저 설치는 실행하지 않음: PM2/honcho 는 devDep 포함 여부만 확인, goreman/overmind 는
+     `make preflight` WARN + README 안내로 충분.
+   - **native-mobile(ios-swiftui·android-compose)·cross-mobile(flutter/RN) 은 이 단계 전체 생략** —
+     프로세스 매니저 미적용(§0 분류 참조).
 
 ---
 

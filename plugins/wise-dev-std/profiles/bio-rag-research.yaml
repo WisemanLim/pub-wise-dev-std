@@ -52,6 +52,7 @@ run_methods:
   direct:
     dev: "포털: pnpm dev / 분석API: uv run uvicorn --reload"
     start: "compose 또는 K8s 권장(다중 서비스)"
+    local_pm: "honcho (Procfile.dev, dev 의존성) — make run/ps. portal+bff+analysis+worker 통합로그, Ctrl-C 종료"
   container:
     dev: "docker compose up (web, bff, analysis, postgres, pgvector, redis, neo4j, minio)"
 
