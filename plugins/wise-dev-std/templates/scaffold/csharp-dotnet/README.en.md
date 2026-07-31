@@ -46,11 +46,31 @@ make dev
 | `make up` | Start PostgreSQL + Redis containers |
 | `make down` | Stop and remove all containers |
 | `make dev` | Run single dev server (`dotnet run`) |
-| `make run` | Start api(+worker) via **goreman** (`Procfile.dev`) |
-| `make stop` | Stop all goreman procs (from another shell) |
+| `make local-all` | Start infra(docker) + **goreman** api(+worker) together (background) |
+| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | Stop goreman + tear down infra |
+| `make local-restart` | Restart goreman (infra stays up) |
+| `make ps` | goreman process status (`goreman run status`) |
 | `make test` | Run all tests (`dotnet test`) |
 | `make build` | Build Docker image (`--profile app`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
+| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
+| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
+
+### Local multi-process (goreman)
+
+Use when running a worker alongside the api process. Defined by the `api:`/`worker:` lines in
+`Procfile.dev`. goreman runs **daemonized in the background** (nohup+pidfile, `.make/goreman.pid`),
+controlled via `local-logs`/`local-stop`/`local-restart`.
+
+```bash
+go install github.com/mattn/goreman@latest   # once
+make local-all       # start infra + goreman in the background
+make local-logs      # tail aggregated logs
+make local-stop       # stop everything
+```
 
 ## Directory Structure
 

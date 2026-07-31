@@ -82,21 +82,21 @@ make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 | `make dc-logs [SVC=xxx]` | docker compose 로그 추적 |
 | `make dc-ps` | docker compose 컨테이너 상태 |
 | `make dev` | 빌드 후 바이너리 직접 실행 (포그라운드) |
-| `make run` | **goreman** 으로 server(+worker) 동시 기동 (`Procfile.dev`) |
-| `make stop` | goreman 전체 중지 |
-| `make restart` | goreman 재시작 |
-| `make logs` | goreman 통합 로그 |
 | `make ps` | goreman 프로세스 상태 |
 
 ### 일괄 기동
 
 | 명령 | 설명 |
 |------|------|
-| `make local-all [LOCAL_INFRA=redis]` | **[local]** infra(docker) + 빌드 + goreman 한 번에 기동 |
-| `make local-down` | local-all 역순 종료 (goreman → docker) |
-| `make dev-all` | **[dev/staging]** app+infra 컨테이너 기동 (기존 이미지) |
-| `make dev-build` | **[dev/staging]** 이미지 재빌드 후 기동 |
-| `make dev-down` | app+infra 전체 정리 |
+| `make local-all [LOCAL_INFRA=redis]` | **[local]** infra(docker) + 빌드 + goreman 일괄 기동 (백그라운드) |
+| `make local-logs` | **[local]** 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | **[local]** goreman 종료 + infra 정리 |
+| `make local-restart` | **[local]** goreman 재기동 (infra 유지) |
+| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`, 기존 이미지) |
+| `make dev-build` / `staging-build` / `prod-build` | 환경별 이미지 재빌드 후 기동 |
+| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
+| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
 
 ### 테스트 & 코드 품질
 
@@ -149,26 +149,27 @@ make dev BUILD_TYPE=Release
 
 ### B) 로컬 멀티프로세스 (goreman, Procfile.dev)
 
-server 외에 worker 프로세스를 함께 띄울 때 사용. `Procfile.dev` 의 `web:`/`worker:` 로 정의.
+server 외에 worker 프로세스를 함께 띄울 때 사용. `Procfile.dev` 의 `web:`/`worker:` 로 정의. goreman 은
+**백그라운드 데몬화**(nohup+pidfile, `.make/goreman.pid`)되어 `local-logs`/`local-stop`/`local-restart` 로 제어한다.
 
 ```bash
 # goreman 설치 (1회)
 go install github.com/mattn/goreman@latest
 
-# infra + 빌드 + 멀티프로세스 일괄 기동
+# infra + 빌드 + 멀티프로세스 일괄 기동 (백그라운드)
 make local-all LOCAL_INFRA=redis   # SQLite 사용 시 postgres 불필요 → redis 만 기동
 
 # 개별 실행:
 make up             # infra 기동
 make build          # 컴파일
-make run            # goreman 시작 (Ctrl-C 로 종료)
-make local-down     # infra 정리
+make local-logs      # 통합 로그 추적
+make local-stop      # 전체 종료 (goreman + infra)
 ```
 
 > C++은 핫리로드 없음. 코드 변경 후 `make build` 재실행 → goreman 자동으로 바이너리 재시작 불가.
-> `entr`/`nodemon --exec make run` 으로 파일 감시 자동화 가능.
+> `entr`/`nodemon --exec make local-restart` 로 파일 감시 자동화 가능.
 
-### C) Docker 전체 스택 (dev/staging)
+### C) Docker 전체 스택 (dev/staging/prod)
 
 ```bash
 # 기존 이미지로 기동
@@ -177,8 +178,11 @@ make dev-all
 # 코드 변경 후 이미지 재빌드 + 기동
 make dev-build
 
+# 로그 추적
+make dev-logs
+
 # 정리
-make dev-down
+make dev-stop
 ```
 
 ## 접속 / 포트

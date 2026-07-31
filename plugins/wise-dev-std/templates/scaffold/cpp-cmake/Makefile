@@ -1,12 +1,17 @@
 # {{PROJECT_NAME}} — cpp-cmake (정적 템플릿 / static scaffold template)
-.PHONY: configure build clean dev test deploy up down dc-logs dc-ps \
-        run stop restart logs ps local-all local-down dev-all dev-build dev-down \
+.PHONY: configure build clean dev test deploy up down dc-logs dc-ps ps \
+        local-all local-logs local-stop local-restart \
+        dev-all dev-build dev-logs dev-stop dev-restart \
+        staging-all staging-build staging-logs staging-stop staging-restart \
+        prod-all prod-build prod-logs prod-stop prod-restart \
         preflight sanitize fmt lint
 ENV        ?= local
 BUILD_TYPE ?= Debug        # Debug | Release | RelWithDebInfo
 BUILD_DIR  ?= build/$(shell echo $(BUILD_TYPE) | tr '[:upper:]' '[:lower:]')
 BINARY     ?= $(BUILD_DIR)/{{PROJECT_NAME}}
 GOREMAN    ?= goreman -f Procfile.dev
+GOREMAN_PIDFILE := .make/goreman.pid
+GOREMAN_LOGFILE := .make/goreman.log
 # local 모드에서 기동할 compose 서비스만 지정 (비워두면 전체 infra).
 # SQLite 사용 시 postgres 불필요 → 예: LOCAL_INFRA=redis make local-all
 LOCAL_INFRA ?=
@@ -25,7 +30,7 @@ preflight:  ## 런타임·도구 버전 호환성 점검
 	@command -v vcpkg    >/dev/null 2>&1 || echo "WARN: vcpkg 미설치 — https://vcpkg.io (의존성 관리 시 VCPKG_ROOT 설정 필요)"
 	@command -v clangd   >/dev/null 2>&1 || echo "INFO: clangd 미설치 — brew install llvm (IDE/LSP 지원)"
 	@command -v clang-format >/dev/null 2>&1 || echo "INFO: clang-format 미설치 — brew install llvm (make fmt 필요 시)"
-	@command -v goreman  >/dev/null 2>&1 || echo "WARN: goreman 미설치 — go install github.com/mattn/goreman@latest (make run 필요 시)"
+	@command -v goreman  >/dev/null 2>&1 || echo "WARN: goreman 미설치 — go install github.com/mattn/goreman@latest (make local-all 필요 시)"
 	@echo "=== Preflight OK ==="
 
 ## --- CMake 빌드 ---
@@ -71,27 +76,61 @@ sanitize: ## AddressSanitizer + UBSan 빌드·실행 (메모리 안전성 점검
 	cmake --build build/sanitize --parallel
 	build/sanitize/{{PROJECT_NAME}}
 
-## --- local 멀티프로세스 (goreman, Procfile.dev) ---
-run: build  ## goreman으로 server(+worker) 동시 기동 (빌드 포함)
-	$(GOREMAN) start
-stop:    ; goreman run stop-all || true
-restart: ; goreman run restart-all || true
-logs:    ; @echo "통합 로그는 make run 콘솔. 개별 상태: goreman run status"
-ps:      ; goreman run status || echo "먼저 make run (별도 터미널)"
+ps:  ## goreman 프로세스 상태
+	@goreman run status || echo "먼저 make local-all"
 
-## --- local-all: infra + goreman 한 번에 기동 ---
-local-all:   ## [local] infra(docker) + 빌드 + goreman 일괄 기동 / Ctrl-C 로 종료
+## --- local-all: infra + 빌드 + goreman(server+worker) 한 번에 기동 (백그라운드) ---
+local-all:      ## [local] infra(docker) + 빌드 + goreman 일괄 기동 (백그라운드)
 	docker compose up -d $(LOCAL_INFRA)
 	$(MAKE) build
-	$(GOREMAN) start
-local-down:  ## [local] goreman 종료 + infra 정리
-	goreman run stop-all || true
+	@mkdir -p .make
+	@if [ -f $(GOREMAN_PIDFILE) ] && kill -0 $$(cat $(GOREMAN_PIDFILE)) 2>/dev/null; then \
+	  echo "goreman 이미 실행 중 (pid $$(cat $(GOREMAN_PIDFILE)))"; \
+	else \
+	  nohup $(GOREMAN) start > $(GOREMAN_LOGFILE) 2>&1 & echo $$! > $(GOREMAN_PIDFILE); \
+	  echo "goreman 백그라운드 기동 (pid $$(cat $(GOREMAN_PIDFILE)), 로그: $(GOREMAN_LOGFILE))"; \
+	fi
+local-logs:     ## [local] 통합 로그 추적 (Ctrl-C 로 tail 종료 — 프로세스는 유지)
+	@touch $(GOREMAN_LOGFILE) && tail -f $(GOREMAN_LOGFILE)
+local-stop:     ## [local] goreman 종료 + infra 정리
+	@goreman run stop-all 2>/dev/null || true
+	@if [ -f $(GOREMAN_PIDFILE) ]; then kill $$(cat $(GOREMAN_PIDFILE)) 2>/dev/null || true; rm -f $(GOREMAN_PIDFILE); fi
 	docker compose down --remove-orphans
+local-restart:  ## [local] goreman 재기동 (infra 유지)
+	@goreman run restart-all 2>/dev/null || true
 
-## --- dev/staging/prod: Docker 전체 스택 ---
-dev-all:    ## [dev] infra + app 컨테이너 기동 (기존 이미지 사용)
-	docker compose --profile app up -d
-dev-build:  ## [dev] 이미지 빌드 후 기동 (코드 변경 후 재빌드 포함)
-	docker compose --profile app up -d --build
-dev-down:   ## [dev] app + infra 전체 정리
-	docker compose --profile app down --remove-orphans
+## --- dev: Docker 전체 스택 (.env.dev) ---
+dev-all:      ## [dev] infra + app 컨테이너 기동 (기존 이미지 사용)
+	docker compose --env-file .env.dev --profile app up -d
+dev-build:    ## [dev] 이미지 빌드 후 기동 (코드 변경 후 재빌드 포함)
+	docker compose --env-file .env.dev --profile app up -d --build
+dev-logs:     ## [dev] 컨테이너 로그 추적 (SVC=<service>)
+	docker compose --env-file .env.dev --profile app logs -f $(SVC)
+dev-stop:     ## [dev] app + infra 전체 정리
+	docker compose --env-file .env.dev --profile app down --remove-orphans
+dev-restart:  ## [dev] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	docker compose --env-file .env.dev --profile app restart $(SVC)
+
+## --- staging: Docker 전체 스택 (.env.staging) ---
+staging-all:      ## [staging] infra + app 컨테이너 기동
+	docker compose --env-file .env.staging --profile app up -d
+staging-build:    ## [staging] 이미지 빌드 후 기동
+	docker compose --env-file .env.staging --profile app up -d --build
+staging-logs:     ## [staging] 컨테이너 로그 추적 (SVC=<service>)
+	docker compose --env-file .env.staging --profile app logs -f $(SVC)
+staging-stop:     ## [staging] app + infra 전체 정리
+	docker compose --env-file .env.staging --profile app down --remove-orphans
+staging-restart:  ## [staging] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	docker compose --env-file .env.staging --profile app restart $(SVC)
+
+## --- prod: Docker 전체 스택 (.env.prod) ---
+prod-all:      ## [prod] infra + app 컨테이너 기동
+	docker compose --env-file .env.prod --profile app up -d
+prod-build:    ## [prod] 이미지 빌드 후 기동
+	docker compose --env-file .env.prod --profile app up -d --build
+prod-logs:     ## [prod] 컨테이너 로그 추적 (SVC=<service>)
+	docker compose --env-file .env.prod --profile app logs -f $(SVC)
+prod-stop:     ## [prod] app + infra 전체 정리
+	docker compose --env-file .env.prod --profile app down --remove-orphans
+prod-restart:  ## [prod] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	docker compose --env-file .env.prod --profile app restart $(SVC)

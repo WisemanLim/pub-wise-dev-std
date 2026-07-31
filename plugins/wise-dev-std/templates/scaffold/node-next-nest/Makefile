@@ -1,6 +1,9 @@
 # {{PROJECT_NAME}} — node-next-nest (정적 템플릿 / static scaffold template)
-.PHONY: dev test build deploy up down dc-logs dc-ps run stop restart logs ps \
-        local-all local-down dev-all dev-build dev-down preflight
+.PHONY: dev test build deploy up down dc-logs dc-ps ps preflight \
+        local-all local-logs local-stop local-restart \
+        dev-all dev-build dev-logs dev-stop dev-restart \
+        staging-all staging-build staging-logs staging-stop staging-restart \
+        prod-all prod-build prod-logs prod-stop prod-restart
 ENV ?= local
 ENV_FILE := $(wildcard .env.$(ENV))
 DC := docker compose $(if $(ENV_FILE),--env-file $(ENV_FILE),)   # .env.$(ENV) 존재 시 포트/IP/계정 주입
@@ -39,29 +42,53 @@ test:   ; pnpm -r test
 build:  ; pnpm -r build
 deploy: ; helm upgrade --install {{PROJECT_NAME}} ./deploy/helm
 
-## --- local 멀티프로세스 (PM2, 백그라운드 데몬) ---
-run:     ## PM2 데몬 기동 (web+api)
-	$(PM) start ecosystem.config.cjs
-stop:    ## PM2 중지·삭제
-	$(PM) delete ecosystem.config.cjs || true
-restart: ; $(PM) restart ecosystem.config.cjs
-logs:    ## PM2 통합 로그 (Ctrl-C 로 종료)
-	$(PM) logs
-ps:      ## PM2 프로세스 상태
+ps:  ## PM2 프로세스 상태
 	$(PM) ls
 
-## --- local-all: infra + PM2 한 번에 기동 ---
-local-all:   ## [local] infra(docker) + PM2 일괄 기동 / docker up + managed procs
+## --- local-all: infra + PM2 한 번에 기동 (백그라운드 데몬) ---
+local-all:      ## [local] infra(docker) + PM2 일괄 기동 / docker up + managed procs
 	$(DC) up -d $(LOCAL_INFRA)
 	$(PM) start ecosystem.config.cjs
-local-down:  ## [local] PM2 종료 + infra 정리 (역순)
+local-logs:     ## [local] PM2 통합 로그 추적 (Ctrl-C 로 tail 종료 — 프로세스는 유지)
+	$(PM) logs
+local-stop:     ## [local] PM2 종료 + infra 정리
 	$(PM) delete ecosystem.config.cjs || true
 	$(DC) down --remove-orphans
+local-restart:  ## [local] PM2 재기동 (infra 유지)
+	$(PM) restart ecosystem.config.cjs
 
-## --- dev/staging/prod: Docker 전체 스택 ---
-dev-all:    ## [dev] infra + app 컨테이너 기동 (기존 이미지 사용)
-	$(DC) --profile app up -d
-dev-build:  ## [dev] 이미지 빌드 후 기동 (코드 변경 후 재빌드 포함)
-	$(DC) --profile app up -d --build
-dev-down:   ## [dev] app + infra 전체 정리
-	$(DC) --profile app down --remove-orphans
+## --- dev: Docker 전체 스택 (.env.dev) ---
+dev-all:      ## [dev] infra + app 컨테이너 기동 (기존 이미지 사용)
+	docker compose --env-file .env.dev --profile app up -d
+dev-build:    ## [dev] 이미지 빌드 후 기동 (코드 변경 후 재빌드 포함)
+	docker compose --env-file .env.dev --profile app up -d --build
+dev-logs:     ## [dev] 컨테이너 로그 추적 (SVC=<service>)
+	docker compose --env-file .env.dev --profile app logs -f $(SVC)
+dev-stop:     ## [dev] app + infra 전체 정리
+	docker compose --env-file .env.dev --profile app down --remove-orphans
+dev-restart:  ## [dev] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	docker compose --env-file .env.dev --profile app restart $(SVC)
+
+## --- staging: Docker 전체 스택 (.env.staging) ---
+staging-all:      ## [staging] infra + app 컨테이너 기동
+	docker compose --env-file .env.staging --profile app up -d
+staging-build:    ## [staging] 이미지 빌드 후 기동
+	docker compose --env-file .env.staging --profile app up -d --build
+staging-logs:     ## [staging] 컨테이너 로그 추적 (SVC=<service>)
+	docker compose --env-file .env.staging --profile app logs -f $(SVC)
+staging-stop:     ## [staging] app + infra 전체 정리
+	docker compose --env-file .env.staging --profile app down --remove-orphans
+staging-restart:  ## [staging] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	docker compose --env-file .env.staging --profile app restart $(SVC)
+
+## --- prod: Docker 전체 스택 (.env.prod) ---
+prod-all:      ## [prod] infra + app 컨테이너 기동
+	docker compose --env-file .env.prod --profile app up -d
+prod-build:    ## [prod] 이미지 빌드 후 기동
+	docker compose --env-file .env.prod --profile app up -d --build
+prod-logs:     ## [prod] 컨테이너 로그 추적 (SVC=<service>)
+	docker compose --env-file .env.prod --profile app logs -f $(SVC)
+prod-stop:     ## [prod] app + infra 전체 정리
+	docker compose --env-file .env.prod --profile app down --remove-orphans
+prod-restart:  ## [prod] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	docker compose --env-file .env.prod --profile app restart $(SVC)

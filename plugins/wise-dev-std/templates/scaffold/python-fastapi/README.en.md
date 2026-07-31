@@ -54,28 +54,47 @@ make <target> [ENV=<env>]
 | `make up` | Start PostgreSQL + Redis containers |
 | `make down` | Stop and remove all containers |
 | `make dev` | Run single dev server, foreground (`uv run uvicorn app.main:app --reload`) |
-| `make run` | Start web(+worker) together via **honcho** (`Procfile.dev`) |
+| `make local-all` | Start infra(docker) + web(+worker) together (background) |
+| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | Stop web/worker + tear down infra |
+| `make local-restart` | Restart web/worker (infra stays up) |
 | `make ps` | Validate Procfile (`honcho check`) |
 | `make test` | Run pytest (`uv run pytest`) |
 | `make build` | Build Docker app image (`--profile app`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
+| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
+| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
 
-### Local multi-process (honcho)
+### Local multi-process (honcho by default, pm2 as an alternative)
 
 Use when running a worker (arq/celery/rq) alongside the web (uvicorn) process. Defined by the
-`web:`/`worker:` lines in `Procfile.dev`. honcho is a dev dependency (installed by `uv sync`).
-Runs foreground with aggregated logs; **Ctrl-C stops everything** (not a daemon).
+`web:`/`worker:` lines in `Procfile.dev`. honcho is a dev dependency (installed by `uv sync`) and
+runs **daemonized in the background** (nohup+pidfile, `.make/honcho.pid`), controlled via
+`local-logs`/`local-stop`/`local-restart`.
 
 ```bash
-make run      # start every process in Procfile.dev
+make local-all       # start infra + honcho in the background
+make local-logs      # tail aggregated logs
+make local-stop       # stop everything
 # add a worker: uncomment the 'worker:' line in Procfile.dev
+```
+
+To use pm2 instead (requires Node/npx):
+
+```bash
+make local-all PROC_MGR=pm2       # start pm2 daemon from ecosystem.config.cjs
+make local-logs PROC_MGR=pm2
+make local-stop PROC_MGR=pm2
 ```
 
 Override environment:
 
 ```bash
-make up ENV=dev         # uses .env.dev
-make build ENV=staging  # uses .env.staging
+make up ENV=dev         # infra only, uses .env.dev
+make dev-all            # full app+infra stack from .env.dev
+make staging-all        # full app+infra stack from .env.staging
 ```
 
 ## Environment Variables

@@ -57,25 +57,30 @@ make <target> [ENV=<env>]
 | `make up` | PostgreSQL + Redis 컨테이너 기동 |
 | `make down` | 전체 컨테이너 종료 및 정리 |
 | `make dev` | 전체 워크스페이스 개발 서버 실행, 포그라운드 (`pnpm -r dev`) |
-| `make run` | **PM2** 로 web+api 데몬 기동 (`pm2 start ecosystem.config.cjs`) |
-| `make stop` | PM2 프로세스 중지·삭제 |
-| `make restart` | PM2 프로세스 재시작 |
-| `make logs` | PM2 통합 로그 추적 |
+| `make local-all` | infra(docker) + **PM2** web+api 일괄 기동 (백그라운드) |
+| `make local-logs` | PM2 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | PM2 프로세스 중지·삭제 + infra 정리 |
+| `make local-restart` | PM2 프로세스 재시작 (infra 유지) |
 | `make ps` | PM2 프로세스 상태 (`pm2 ls`) |
 | `make test` | 전체 워크스페이스 테스트 실행 (`pnpm -r test`) |
 | `make build` | 전체 워크스페이스 빌드 (`pnpm -r build`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
+| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
+| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
 
 ### 로컬 멀티프로세스 (PM2)
 
 호스트 직접 실행 시 web(Next)+api(Nest)를 한 번에 관리. `ecosystem.config.cjs` 에 앱 정의(워커 추가 가능).
-PM2 는 `devDependencies` 에 포함되어 `pnpm install` 후 바로 사용. 베어메탈 prod 기동에도 동일 설정 재사용.
+PM2 는 `devDependencies` 에 포함되어 `pnpm install` 후 바로 사용, **백그라운드 데몬**으로 기동되어
+`local-logs`/`local-stop`/`local-restart` 로 제어한다. 베어메탈 prod 기동에도 동일 설정 재사용.
 
 ```bash
-make run      # 데몬 기동 (백그라운드)
-make logs     # 로그 추적
-make ps       # 상태
-make stop     # 중지
+make local-all      # infra + PM2 백그라운드 기동
+make local-logs      # 통합 로그 추적
+make local-stop      # 전체 종료
+make ps              # 상태
 ```
 
 ### 특정 앱만 실행

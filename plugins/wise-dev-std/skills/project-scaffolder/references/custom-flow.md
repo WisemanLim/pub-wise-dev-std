@@ -124,6 +124,6 @@
 환경 파일의 DB 관련 변수도 해당 DB 에 맞게 생성.
 
 local 멀티프로세스 매니저(웹 서비스 한정)는 매핑된 프로파일의 표준을 **자동 적용**한다
-(SKILL "local 멀티프로세스 매니저" 항: node=PM2 · python=honcho · go=goreman · rust=overmind ·
+(SKILL "local 멀티프로세스 매니저" 항: node=PM2 · python=honcho(대안 pm2) · go=goreman · rust=overmind ·
 c/c++=goreman). base_profile Makefile 교체 시 `run/stop/restart/logs/ps` 타겟 + 설정 파일
 (`ecosystem.config.cjs` / `Procfile.dev`)이 함께 들어온다. 모바일 선택 시 미적용.

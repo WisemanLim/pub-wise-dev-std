@@ -82,21 +82,21 @@ make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 | `make dc-logs [SVC=xxx]` | Tail docker compose logs |
 | `make dc-ps` | Show container status |
 | `make dev` | Build then run binary directly (foreground) |
-| `make run` | Start server(+worker) via **goreman** (`Procfile.dev`) |
-| `make stop` | Stop all goreman processes |
-| `make restart` | Restart goreman |
-| `make logs` | Tail goreman logs |
 | `make ps` | Show goreman process status |
 
 ### All-in-one
 
 | Command | Description |
 |---------|-------------|
-| `make local-all [LOCAL_INFRA=redis]` | **[local]** Start infra + build + goreman in one command |
-| `make local-down` | Stop goreman then infra (reverse order) |
-| `make dev-all` | **[dev/staging]** Start app+infra containers (existing images) |
-| `make dev-build` | **[dev/staging]** Rebuild images then start |
-| `make dev-down` | Stop and remove all app+infra containers |
+| `make local-all [LOCAL_INFRA=redis]` | **[local]** Start infra + build + goreman together (background) |
+| `make local-logs` | **[local]** Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | **[local]** Stop goreman + tear down infra |
+| `make local-restart` | **[local]** Restart goreman (infra stays up) |
+| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`, existing images) |
+| `make dev-build` / `staging-build` / `prod-build` | Rebuild images then start, per env |
+| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
+| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
 
 ### Test & Code Quality
 
@@ -149,26 +149,28 @@ make dev BUILD_TYPE=Release
 
 ### B) Local Multi-process (goreman, Procfile.dev)
 
-Run server + worker processes together. Define processes in `Procfile.dev`.
+Run server + worker processes together. Define processes in `Procfile.dev`. goreman runs
+**daemonized in the background** (nohup+pidfile, `.make/goreman.pid`), controlled via
+`local-logs`/`local-stop`/`local-restart`.
 
 ```bash
 # Install goreman (once)
 go install github.com/mattn/goreman@latest
 
-# Start infra + build + all processes
+# Start infra + build + all processes (background)
 make local-all LOCAL_INFRA=redis   # SQLite → only redis needed (no postgres)
 
 # Individual steps:
 make up             # start infra
 make build          # compile
-make run            # start goreman (Ctrl-C to stop)
-make local-down     # clean up infra
+make local-logs      # tail aggregated logs
+make local-stop      # stop everything (goreman + infra)
 ```
 
 > C++ has no hot reload. After code changes, run `make build` again.
-> Use `entr` or `nodemon --exec make run` for file-watch automation.
+> Use `entr` or `nodemon --exec make local-restart` for file-watch automation.
 
-### C) Docker Full Stack (dev/staging)
+### C) Docker Full Stack (dev/staging/prod)
 
 ```bash
 # Start with existing images
@@ -177,8 +179,11 @@ make dev-all
 # Rebuild images after code changes
 make dev-build
 
+# Tail logs
+make dev-logs
+
 # Clean up
-make dev-down
+make dev-stop
 ```
 
 ## Ports

@@ -45,7 +45,7 @@ run_methods:
   direct:
     dev: "./gradlew bootRun --args='--spring.profiles.active=local'"
     start: "java -jar build/libs/*.jar"
-    local_pm: "goreman (Procfile.dev) — make run/stop. go install github.com/mattn/goreman@latest"
+    local_pm: "goreman (Procfile.dev) — make local-all/local-stop. go install github.com/mattn/goreman@latest"
   container:
     dev: "docker compose up"
 

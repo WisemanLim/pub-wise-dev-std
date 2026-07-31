@@ -46,7 +46,7 @@ run_methods:
   direct:
     dev: "pnpm dev"
     start: "pnpm start"
-    local_pm: "PM2 (ecosystem.config.cjs) — make run/stop/restart/logs/ps. 베어메탈 prod 재사용 가능"
+    local_pm: "PM2 (ecosystem.config.cjs) — make local-all/local-logs/local-stop/local-restart/ps. 베어메탈 prod 재사용 가능"
   container:
     dev: "docker compose up"
 

@@ -41,7 +41,7 @@ run_methods:
   direct:
     dev: "go run ./cmd/server (또는 air 핫리로드)"
     start: "./bin/server"
-    local_pm: "goreman (Procfile.dev) — make run/stop/restart/ps. go install github.com/mattn/goreman@latest"
+    local_pm: "goreman (Procfile.dev) — make local-all/local-logs/local-stop/local-restart/ps. go install github.com/mattn/goreman@latest"
   container:
     dev: "docker compose up"
 

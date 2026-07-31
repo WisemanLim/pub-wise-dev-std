@@ -41,7 +41,7 @@ run_methods:
   direct:
     dev: "cargo run (또는 cargo watch -x run)"
     start: "./target/release/server"
-    local_pm: "overmind (Procfile.dev, +cargo-watch +tmux) — make run/stop/restart/logs/ps. 대안 hivemind"
+    local_pm: "overmind (Procfile.dev, +cargo-watch +tmux) — make local-all/local-logs/local-stop/local-restart/ps. 대안 hivemind"
   container:
     dev: "docker compose up"
 

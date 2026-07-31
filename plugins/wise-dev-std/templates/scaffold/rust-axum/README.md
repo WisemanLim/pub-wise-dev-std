@@ -55,24 +55,31 @@ make <target> [ENV=<env>]
 | `make up` | PostgreSQL + Redis 컨테이너 기동 |
 | `make down` | 전체 컨테이너 종료 및 정리 |
 | `make dev` | 단일 개발 서버 (`cargo run`) |
-| `make run` | **overmind** 로 server(+worker) 동시 기동, 핫리로드 (`Procfile.dev`) |
-| `make stop` | 전체 중지 (`overmind stop`) |
-| `make restart` | server 재시작 (`overmind restart web`) |
-| `make logs` | tmux 세션 접속 (`overmind connect`) |
+| `make local-all` | infra(docker) + **overmind** server(+worker) 일괄 기동, 핫리로드 (백그라운드) |
+| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | overmind 종료 + infra 정리 |
+| `make local-restart` | server 재시작 (`overmind restart web`, infra 유지) |
 | `make ps` | 프로세스 상태 (`overmind ps`) |
 | `make test` | 전체 테스트 실행 (`cargo test`) |
 | `make build` | Docker 앱 이미지 빌드 (`--profile app`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
+| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
+| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
 
 ### 로컬 멀티프로세스 (overmind + cargo-watch)
 
 server 외에 대량 문서 처리/재색인 워커를 함께 띄울 때 사용. `Procfile.dev` 의 `web:`/`worker:` 줄로 정의하며
-`cargo watch -x run` 으로 코드 변경 시 자동 재빌드. 사전 설치 필요(1회):
+`cargo watch -x run` 으로 코드 변경 시 자동 재빌드. overmind 는 **백그라운드 데몬화**(nohup+pidfile,
+`.make/overmind.pid`)되어 `local-logs`/`local-stop`/`local-restart` 로 제어한다. 사전 설치 필요(1회):
 
 ```bash
 cargo install cargo-watch
 brew install overmind tmux        # 또는 go install github.com/DarthSim/overmind@latest
-make run                          # 전체 기동 (제어 소켓: 별도 터미널서 overmind ps/restart web)
+make local-all      # infra + overmind 백그라운드 기동
+make local-logs      # 통합 로그 추적
+make local-stop      # 전체 종료
 ```
 
 > tmux 가 없으면 `hivemind Procfile.dev` 로 대체(제어 소켓 없음).
@@ -80,8 +87,9 @@ make run                          # 전체 기동 (제어 소켓: 별도 터미�
 ### 환경 오버라이드
 
 ```bash
-make up ENV=dev         # .env.dev 사용
-make build ENV=staging  # .env.staging 사용
+make up ENV=dev               # .env.dev 사용 (infra만)
+make dev-all                  # .env.dev 기반 app+infra 전체 스택
+make staging-all               # .env.staging 기반 app+infra 전체 스택
 ```
 
 ## 환경 변수

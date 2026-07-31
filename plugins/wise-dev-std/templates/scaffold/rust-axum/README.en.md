@@ -55,25 +55,32 @@ make <target> [ENV=<env>]
 | `make up` | Start PostgreSQL + Redis containers |
 | `make down` | Stop and remove all containers |
 | `make dev` | Run single dev server (`cargo run`) |
-| `make run` | Start server(+worker) via **overmind**, hot-reload (`Procfile.dev`) |
-| `make stop` | Stop all (`overmind stop`) |
-| `make restart` | Restart server (`overmind restart web`) |
-| `make logs` | Attach tmux session (`overmind connect`) |
+| `make local-all` | Start infra(docker) + **overmind** server(+worker) together, hot-reload (background) |
+| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | Stop overmind + tear down infra |
+| `make local-restart` | Restart server (`overmind restart web`, infra stays up) |
 | `make ps` | Process status (`overmind ps`) |
 | `make test` | Run all tests (`cargo test`) |
 | `make build` | Build Docker app image (`--profile app`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
+| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
+| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
 
 ### Local multi-process (overmind + cargo-watch)
 
 Use when running a heavy document-processing / reindex worker alongside the server. Defined by the
 `web:`/`worker:` lines in `Procfile.dev`, with `cargo watch -x run` for auto-rebuild on change.
-One-time install:
+overmind runs **daemonized in the background** (nohup+pidfile, `.make/overmind.pid`), controlled via
+`local-logs`/`local-stop`/`local-restart`. One-time install:
 
 ```bash
 cargo install cargo-watch
 brew install overmind tmux        # or: go install github.com/DarthSim/overmind@latest
-make run                          # start everything (control via overmind ps/restart web from another shell)
+make local-all       # start infra + overmind in the background
+make local-logs      # tail aggregated logs
+make local-stop       # stop everything
 ```
 
 > Without tmux, fall back to `hivemind Procfile.dev` (no control socket).
@@ -81,8 +88,9 @@ make run                          # start everything (control via overmind ps/re
 Override environment:
 
 ```bash
-make up ENV=dev         # uses .env.dev
-make build ENV=staging  # uses .env.staging
+make up ENV=dev         # infra only, uses .env.dev
+make dev-all            # full app+infra stack from .env.dev
+make staging-all        # full app+infra stack from .env.staging
 ```
 
 ## Environment Variables

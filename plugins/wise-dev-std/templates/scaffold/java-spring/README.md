@@ -54,11 +54,30 @@ make <target> [ENV=<env>]
 | `make up` | PostgreSQL + Redis 컨테이너 기동 |
 | `make down` | 전체 컨테이너 종료 및 정리 |
 | `make dev` | 단일 로컬 개발 서버 (`bootRun --spring.profiles.active=local`) |
-| `make run` | **goreman** 으로 api(+worker) 동시 기동 (`Procfile.dev`) |
-| `make stop` | 전체 중지 (`goreman run stop-all`, 별도 터미널) |
+| `make local-all` | infra(docker) + **goreman** api(+worker) 일괄 기동 (백그라운드) |
+| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | goreman 종료 + infra 정리 |
+| `make local-restart` | goreman 재기동 (infra 유지) |
+| `make ps` | goreman 프로세스 상태 (`goreman run status`) |
 | `make test` | 전체 테스트 실행 (`./gradlew test`) |
 | `make build` | Docker 앱 이미지 빌드 (`--profile app`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
+| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
+| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
+
+### 로컬 멀티프로세스 (goreman)
+
+api 외에 워커를 함께 띄울 때 사용. `Procfile.dev` 의 `api:`/`worker:` 줄로 정의. goreman 은
+**백그라운드 데몬화**(nohup+pidfile, `.make/goreman.pid`)되어 `local-logs`/`local-stop`/`local-restart` 로 제어한다.
+
+```bash
+go install github.com/mattn/goreman@latest   # 1회
+make local-all      # infra + goreman 백그라운드 기동
+make local-logs      # 통합 로그 추적
+make local-stop      # 전체 종료
+```
 
 ## 환경 변수
 

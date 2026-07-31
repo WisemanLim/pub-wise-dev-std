@@ -38,7 +38,7 @@ preflight 실패 시 아래 표를 참조해 해결 후 재실행:
 | `FAIL: .NET 8+ 필요` | .NET SDK 구버전 | `brew install dotnet` 또는 공식 사이트 SDK 8 설치 |
 | Gradle + JDK 버전 불일치 | JDK 25 = Gradle 9.5.1+ 필요 | project-scaffolder 스킬 `references/troubleshoot-mobile.md` Gradle 호환표 참조 |
 
-preflight 경고(WARN)는 선택적 도구로 `make run`(멀티프로세스) 사용 시에만 필요. `make dev`(단일 실행)는 무시 가능.
+preflight 경고(WARN)는 선택적 도구로 `make local-all`(멀티프로세스) 사용 시에만 필요. `make dev`(단일 실행)는 무시 가능.
 
 ---
 
@@ -84,8 +84,9 @@ preflight 경고(WARN)는 선택적 도구로 `make run`(멀티프로세스) 사
    - 누락 시 `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/` 에서 복사(+`{{PROJECT_NAME}}` 치환).
      템플릿에도 없으면 project-scaffolder 스킬 "local 멀티프로세스 매니저" 항 규칙으로 생성
      (web 1줄 + worker 주석 예시).
-   - `Makefile` 에 `run/stop/restart/logs/ps` 타겟 존재 확인, 누락 시 스킬 규칙대로 보강.
+   - `Makefile` 에 `local-all/local-logs/local-stop/local-restart` 타겟 존재 확인, 누락 시 스킬 규칙대로 보강.
    - 설정 파일의 포트는 `.env.local` 의 `API_PORT` 등과 일치해야 함 — 불일치 시 보고 후 정정.
+   - python-fastapi 는 `PROC_MGR ?= honcho`(기본) / `pm2`(대안, `ecosystem.config.cjs`) 두 경로 모두 존재하는지 확인.
    - 매니저 설치는 실행하지 않음: PM2/honcho 는 devDep 포함 여부만 확인, goreman/overmind 는
      `make preflight` WARN + README 안내로 충분.
    - **native-mobile(ios-swiftui·android-compose)·cross-mobile(flutter/RN) 은 이 단계 전체 생략** —

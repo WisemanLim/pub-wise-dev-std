@@ -48,30 +48,39 @@ make <target> [ENV=<env>]
 | `make up` | Start PostgreSQL + Redis containers |
 | `make down` | Stop and remove all containers |
 | `make dev` | Run single local dev server (`go run ./cmd/server`) |
-| `make run` | Start server(+worker) together via **goreman** (`Procfile.dev`) |
-| `make stop` | Stop all (`goreman run stop-all`, from another shell) |
-| `make restart` | Restart all (`goreman run restart-all`) |
+| `make local-all` | Start infra(docker) + **goreman** server(+worker) together (background) |
+| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | Stop goreman + tear down infra |
+| `make local-restart` | Restart goreman (infra stays up) |
 | `make ps` | Process status (`goreman run status`) |
 | `make test` | Run all tests (`go test ./...`) |
 | `make build` | Build Docker app image (`--profile app`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
+| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
+| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
 
 ### Local multi-process (goreman)
 
 Use when running a queue consumer / reindex worker alongside the server. Defined by the
 `web:`/`worker:` lines in `Procfile.dev`. One-time install: `go install github.com/mattn/goreman@latest`.
-`make run` is foreground with aggregated logs; control from another shell via `goreman run status/restart-all`.
+goreman runs **daemonized in the background** (nohup+pidfile, `.make/goreman.pid`), controlled via
+`local-logs`/`local-stop`/`local-restart`.
 
 ```bash
 go install github.com/mattn/goreman@latest   # once
-make run                                      # start everything
+make local-all       # start infra + goreman in the background
+make local-logs      # tail aggregated logs
+make local-stop       # stop everything
 ```
 
 Override environment with `ENV`:
 
 ```bash
-make up ENV=dev         # uses .env.dev
-make build ENV=staging  # uses .env.staging
+make up ENV=dev         # infra only, uses .env.dev
+make dev-all            # full app+infra stack from .env.dev
+make staging-all        # full app+infra stack from .env.staging
 ```
 
 ## Environment Variables

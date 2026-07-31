@@ -43,10 +43,14 @@ description: >
 프로파일 `makefile_targets` 를 타겟으로. **아래 타겟 전체를 항상 포함**:
 
 ```makefile
-.PHONY: dev test build deploy up down dc-logs dc-ps run stop restart logs ps \
-        local-all local-down dev-all dev-build dev-down preflight
+.PHONY: dev test build deploy up down dc-logs dc-ps ps preflight \
+        local-all local-logs local-stop local-restart \
+        dev-all dev-build dev-logs dev-stop dev-restart \
+        staging-all staging-build staging-logs staging-stop staging-restart \
+        prod-all prod-build prod-logs prod-stop prod-restart
 ENV ?= local
 LOCAL_INFRA ?=   # local 모드 compose 서비스 목록. 비워두면 전체 infra. 예: LOCAL_INFRA=redis
+PROC_MGR ?= <default-mgr>   # python 만: honcho(기본) | pm2(대안, overlay)
 
 ## 사전 호환성 점검 (env-init 전 실행 권장)
 preflight: ## 런타임·도구 버전 호환성 점검
@@ -66,25 +70,38 @@ test:  ; <makefile_targets.test>
 build: ; docker compose --profile app build
 deploy:; <makefile_targets.deploy>
 
-## local 멀티프로세스 (PM2/honcho/goreman/overmind — 아래 항 참조)
-run:     ; <pm-manager> start <config>
-stop:    ; <pm-manager> stop
-restart: ; <pm-manager> restart
-logs:    ; <pm-manager> logs          # 프로세스 매니저 로그 (dc-logs 와 구분)
-ps:      ; <pm-manager> status
+ps: ; <pm-manager> status   # 프로세스 매니저 상태
 
-## local-all: infra + 프로세스 매니저 한 번에
-local-all:   ## [local] docker infra + 프로세스 매니저 일괄 기동
+## local-all/logs/stop/restart: infra + 프로세스 매니저(web/worker) 한 번에 관리 (백그라운드 데몬화)
+local-all:      ## [local] docker infra + 프로세스 매니저 일괄 기동 (백그라운드)
 	docker compose up -d $(LOCAL_INFRA)
-	<pm-manager> start <config>
-local-down:  ## [local] 역순 종료
-	<pm-manager> stop || true
+	<pm-manager 백그라운드 기동: nohup+pidfile 또는 네이티브 데몬(pm2/overmind -D)>
+local-logs:     ## [local] 통합 로그 추적 (tail -f 또는 <pm-manager> logs)
+	<로그 파일 tail 또는 pm-manager logs>
+local-stop:     ## [local] 프로세스 매니저 종료 + infra 정리
+	<pm-manager> stop
 	docker compose down --remove-orphans
+local-restart:  ## [local] 프로세스 매니저 재기동 (infra 유지)
+	<pm-manager> restart
 
-## dev/staging/prod: Docker 전체 스택
-dev-all:    ; docker compose --profile app up -d           # 기존 이미지 사용
-dev-build:  ; docker compose --profile app up -d --build   # 이미지 재빌드 후 기동
-dev-down:   ; docker compose --profile app down --remove-orphans
+## dev/staging/prod: Docker 전체 스택 (환경별 .env.<env> 명시)
+dev-all:          ; docker compose --env-file .env.dev --profile app up -d           # 기존 이미지 사용
+dev-build:        ; docker compose --env-file .env.dev --profile app up -d --build   # 이미지 재빌드 후 기동
+dev-logs:         ; docker compose --env-file .env.dev --profile app logs -f $(SVC)
+dev-stop:         ; docker compose --env-file .env.dev --profile app down --remove-orphans
+dev-restart:      ; docker compose --env-file .env.dev --profile app restart $(SVC)
+
+staging-all:      ; docker compose --env-file .env.staging --profile app up -d
+staging-build:    ; docker compose --env-file .env.staging --profile app up -d --build
+staging-logs:     ; docker compose --env-file .env.staging --profile app logs -f $(SVC)
+staging-stop:     ; docker compose --env-file .env.staging --profile app down --remove-orphans
+staging-restart:  ; docker compose --env-file .env.staging --profile app restart $(SVC)
+
+prod-all:         ; docker compose --env-file .env.prod --profile app up -d
+prod-build:       ; docker compose --env-file .env.prod --profile app up -d --build
+prod-logs:        ; docker compose --env-file .env.prod --profile app logs -f $(SVC)
+prod-stop:        ; docker compose --env-file .env.prod --profile app down --remove-orphans
+prod-restart:     ; docker compose --env-file .env.prod --profile app restart $(SVC)
 ```
 
 타겟별 용도:
@@ -95,19 +112,26 @@ dev-down:   ; docker compose --profile app down --remove-orphans
 | `up` / `down` | infra(DB/캐시)만 docker 기동/정리 | local |
 | `dc-logs` / `dc-ps` | docker compose 로그·컨테이너 상태 | 모든 환경 |
 | `dev` | 단일 프로세스 포그라운드 실행 | local |
-| `run` / `stop` / `restart` / `logs` / `ps` | 프로세스 매니저로 멀티 프로세스 관리 | local |
-| `local-all` / `local-down` | infra + 프로세스 매니저 일괄 기동/종료 | local |
-| `dev-all` | app+infra 컨테이너 기동 (빌드 없음) | dev/staging/prod |
-| `dev-build` | 이미지 빌드 후 app+infra 기동 | dev/staging/prod |
-| `dev-down` | app+infra 전체 정리 | dev/staging/prod |
+| `ps` | 프로세스 매니저 상태 | local |
+| `local-all` / `local-logs` / `local-stop` / `local-restart` | infra + 프로세스 매니저(web/worker) 일괄 기동·로그·종료·재기동 (백그라운드) | local |
+| `<env>-all` | app+infra 컨테이너 기동 (빌드 없음) | dev/staging/prod |
+| `<env>-build` | 이미지 빌드 후 app+infra 기동 | dev/staging/prod |
+| `<env>-logs` | 컨테이너 로그 추적 (SVC=로 특정 서비스) | dev/staging/prod |
+| `<env>-stop` | app+infra 전체 정리 | dev/staging/prod |
+| `<env>-restart` | 컨테이너 재기동 (SVC=로 특정 서비스, 비우면 전체) | dev/staging/prod |
 
 - **중요**: `up` 은 datastore 만 띄운다. app 서비스(build 컨텍스트 보유)는 compose 에서
   `profiles: [app]` 로 묶어, 코드/Dockerfile 미완 상태에서도 `make up` 이 빌드를 시도해 실패하지 않게 한다.
 - `local-all` 의 `LOCAL_INFRA`: SQLite 사용 시 postgres 불필요 → `LOCAL_INFRA=redis make local-all` 로 redis 만 기동.
-- `dev-all` vs `dev-build`: 코드 변경 없이 재시작은 `dev-all`, Dockerfile/소스 변경 후 재빌드는 `dev-build`.
-- `logs`(프로세스 매니저) vs `dc-logs`(docker compose)를 명확히 구분해 README 에 기술.
-- **local 멀티프로세스 타겟**(`run`/`stop`/`restart`/`logs`/`ps`)을 항상 포함한다 — 아래 항 참조.
-  `dev` 는 단일·포그라운드 그대로 두고, `run` 이 프로세스 매니저로 web+worker 등을 함께 관리.
+- `<env>-all` vs `<env>-build`: 코드 변경 없이 재시작은 `-all`, Dockerfile/소스 변경 후 재빌드는 `-build`.
+- **local/dev/staging/prod 전 환경에 동일한 `-all`/`-logs`/`-stop`/`-restart` 네이밍**을 적용한다 — 환경별로
+  다른 커맨드를 외우지 않아도 되게. local 은 프로세스 매니저(호스트) + infra(docker), dev/staging/prod 는
+  compose 전체 스택(`--env-file .env.<env> --profile app`)을 대상으로 한다.
+- **local 멀티프로세스 타겟**(`local-all`/`local-logs`/`local-stop`/`local-restart`)을 항상 포함한다 — 아래 항 참조.
+  `dev` 는 단일·포그라운드 그대로 두고, `local-all` 이 프로세스 매니저로 web+worker 등을 백그라운드로 함께 관리.
+- **포그라운드 전용 매니저(honcho/goreman 기본 모드)도 nohup+pidfile 로 백그라운드 데몬화**해
+  `local-logs`/`local-stop`/`local-restart` 가 PM2/overmind 와 동일하게 동작하도록 한다(정적 템플릿 참조:
+  `templates/scaffold/*/Makefile` 의 `.make/<mgr>.pid` + `.make/<mgr>.log` 패턴).
 
 ### local 멀티프로세스 매니저 (host/베어메탈 편의 / direct-mode process manager)
 컨테이너(compose/K8s) 대신 **호스트 직접 실행** 시 web·worker 등 여러 프로세스를 한 번에 관리하는
@@ -116,15 +140,21 @@ dev-down:   ; docker compose --profile app down --remove-orphans
 | 프로파일 | 매니저 | 설정 파일 | 비고 |
 |---------|--------|----------|------|
 | node-next-nest | **PM2** | `ecosystem.config.cjs` | 데몬·로그·재시작 완비. 베어메탈 prod 재사용. `pnpm exec pm2`(devDep) |
-| python-fastapi | **honcho** | `Procfile.dev` | foreman 류, dev 의존성(`uv add --dev honcho`). 포그라운드 통합로그 |
-| go-gin | **goreman** | `Procfile.dev` | `go install github.com/mattn/goreman@latest`. RPC 제어(`goreman run ...`) |
-| rust-axum | **overmind** | `Procfile.dev` | +`cargo-watch`(핫리로드) +tmux. 제어 소켓. 대안 hivemind |
+| python-fastapi | **honcho**(기본) 또는 **pm2**(대안, `PROC_MGR=pm2`) | `Procfile.dev` / `ecosystem.config.cjs` | honcho: foreman 류, dev 의존성(`uv add --dev honcho`), nohup+pidfile 로 백그라운드 데몬화. pm2: `npx pm2`, Node 필요. 둘 다 `.make/*.pid` 로 상태 추적, `local-all`에서 `PROC_MGR` 로 선택 |
+| go-gin | **goreman** | `Procfile.dev` | `go install github.com/mattn/goreman@latest`. nohup+pidfile 백그라운드 + RPC 제어(`goreman run ...`) |
+| rust-axum | **overmind** | `Procfile.dev` | +`cargo-watch`(핫리로드) +tmux. nohup+pidfile 백그라운드 + 제어 소켓. 대안 hivemind |
 
 생성 규칙:
 - 설정 파일을 템플릿에 두고 복사(§1-3). `{{PROJECT_NAME}}` 치환. **Procfile.dev / ecosystem.config.cjs 는
   web(메인) 1줄 + worker 주석 예시**를 포함해 멀티프로세스 확장 지점을 보인다.
-- Makefile `run/stop/restart/logs/ps` 타겟을 매니저 실커맨드로 채운다. **데몬 미지원 매니저(honcho/goreman 포그라운드)**
-  는 stop/restart/logs 에 안내 메시지(`@echo`) 또는 RPC 서브커맨드를 둔다 — 능력을 과장하지 않음.
+- Makefile `local-all/local-logs/local-stop/local-restart` 타겟을 매니저 실커맨드로 채운다.
+  **네이티브 데몬(PM2)**은 자체 명령을 그대로 쓰고, **포그라운드 매니저(honcho/goreman/overmind)**는
+  `nohup <mgr> start > .make/<mgr>.log 2>&1 & echo $! > .make/<mgr>.pid` 로 백그라운드 데몬화해
+  `local-logs`(로그 tail)·`local-stop`(pid kill)·`local-restart`(kill 후 재기동)가 PM2 와 동일하게 동작하도록 한다 —
+  능력을 과장하지 않되 4개 타겟의 동작은 매니저 무관하게 통일한다.
+- python-fastapi 는 `PROC_MGR ?= honcho` 변수로 `local-all/local-logs/local-stop/local-restart` 전부를
+  `ifeq ($(PROC_MGR),pm2) ... else ... endif` 로 분기한다(정적 템플릿 참조:
+  `templates/scaffold/python-fastapi/Makefile`). `ecosystem.config.cjs`(pm2 대안)도 함께 생성.
 - 외부 설치 도구(goreman/overmind/cargo-watch/tmux)는 **설치 명령을 README·Procfile 주석으로 안내만** 하고
   스캐폴더가 실행하지 않는다(§4 네트워크/설치 금지). PM2·honcho 는 프로젝트 매니페스트(devDep)로 포함.
 - 미커버 프로파일(fallback)은 `profile.run_methods.direct.local_pm` 힌트를 참고해 동급 도구를 선택.

@@ -42,7 +42,7 @@ run_methods:
   direct:
     dev: "uv run uvicorn app.main:app --reload"
     start: "uv run gunicorn app.main:app -k uvicorn.workers.UvicornWorker"
-    local_pm: "honcho (Procfile.dev, dev 의존성) — make run/ps. web+worker 통합로그, Ctrl-C 종료"
+    local_pm: "honcho (Procfile.dev, dev 의존성; 대안 PROC_MGR=pm2) — make local-all/local-logs/local-stop/local-restart. web+worker 백그라운드 통합로그"
   container:
     dev: "docker compose up"
 
@@ -63,7 +63,8 @@ scaffold:
     - ".github/workflows/"
   files:
     - "Makefile"
-    - "Procfile.dev"           # honcho (local 멀티프로세스)
+    - "Procfile.dev"           # honcho (local 멀티프로세스, 기본)
+    - "ecosystem.config.cjs"   # pm2 (local 멀티프로세스, 대안 PROC_MGR=pm2)
     - "docker-compose.yml"
     - "pyproject.toml"
     - "app/main.py"

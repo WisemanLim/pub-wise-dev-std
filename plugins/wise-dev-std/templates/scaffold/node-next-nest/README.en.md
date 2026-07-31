@@ -57,26 +57,31 @@ make <target> [ENV=<env>]
 | `make up` | Start PostgreSQL + Redis containers |
 | `make down` | Stop and remove all containers |
 | `make dev` | Run all workspace dev servers, foreground (`pnpm -r dev`) |
-| `make run` | Start web+api as **PM2** daemons (`pm2 start ecosystem.config.cjs`) |
-| `make stop` | Stop & delete PM2 processes |
-| `make restart` | Restart PM2 processes |
-| `make logs` | Tail PM2 aggregated logs |
+| `make local-all` | Start infra(docker) + **PM2** web+api together (background) |
+| `make local-logs` | Tail aggregated PM2 logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | Stop & delete PM2 processes + tear down infra |
+| `make local-restart` | Restart PM2 processes (infra stays up) |
 | `make ps` | PM2 process status (`pm2 ls`) |
 | `make test` | Run all workspace tests (`pnpm -r test`) |
 | `make build` | Build all workspace apps (`pnpm -r build`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
+| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
+| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
 
 ### Local multi-process (PM2)
 
 For host runs, manage web (Next) + api (Nest) together. Apps are defined in `ecosystem.config.cjs`
-(add workers as needed). PM2 ships as a `devDependency`, usable right after `pnpm install`, and the
-same config can drive bare-metal prod.
+(add workers as needed). PM2 ships as a `devDependency`, usable right after `pnpm install`, and
+runs **daemonized in the background**, controlled via `local-logs`/`local-stop`/`local-restart`.
+The same config can drive bare-metal prod.
 
 ```bash
-make run      # start daemons (background)
-make logs     # tail logs
-make ps       # status
-make stop     # stop
+make local-all       # start infra + PM2 in the background
+make local-logs      # tail aggregated logs
+make local-stop       # stop everything
+make ps               # status
 ```
 
 ### Target a specific app

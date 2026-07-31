@@ -51,7 +51,7 @@ run_methods:
     dev: "./build/debug/{{PROJECT_NAME}} (make build 후 — 컴파일 선행 필수)"
     start: "./build/release/{{PROJECT_NAME}}"
     local_pm: >
-      goreman (Procfile.dev) — make run(build 포함)/stop/logs/ps.
+      goreman (Procfile.dev) — make local-all(build 포함)/local-logs/local-stop/local-restart/ps.
       cargo-watch 같은 핫리로드는 없음(재컴파일 후 재시작). 대안: entr, nodemon --exec.
   container:
     dev: "docker compose --profile app up"

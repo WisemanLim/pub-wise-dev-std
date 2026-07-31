@@ -44,7 +44,7 @@ run_methods:
   direct:
     dev: "dotnet run --project src/Api --launch-profile Development"
     start: "dotnet src/Api/bin/Release/net8.0/Api.dll"
-    local_pm: "goreman (Procfile.dev) — make run/stop. go install github.com/mattn/goreman@latest"
+    local_pm: "goreman (Procfile.dev) — make local-all/local-stop. go install github.com/mattn/goreman@latest"
   container:
     dev: "docker compose up"
 

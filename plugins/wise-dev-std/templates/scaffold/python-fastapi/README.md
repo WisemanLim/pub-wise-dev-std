@@ -54,27 +54,46 @@ make <target> [ENV=<env>]
 | `make up` | PostgreSQL + Redis 컨테이너 기동 |
 | `make down` | 전체 컨테이너 종료 및 정리 |
 | `make dev` | 단일 개발 서버, 포그라운드 (`uv run uvicorn app.main:app --reload`) |
-| `make run` | **honcho** 로 web(+worker) 동시 기동 (`Procfile.dev`) |
+| `make local-all` | infra(docker) + web(+worker) 일괄 기동 (백그라운드) |
+| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | web/worker 중지 + infra 정리 |
+| `make local-restart` | web/worker 재기동 (infra 유지) |
 | `make ps` | Procfile 검증 (`honcho check`) |
 | `make test` | pytest 실행 (`uv run pytest`) |
 | `make build` | Docker 앱 이미지 빌드 (`--profile app`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
+| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
+| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
+| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
 
-### 로컬 멀티프로세스 (honcho)
+### 로컬 멀티프로세스 (honcho 기본, pm2 대안)
 
 web(uvicorn) 외에 워커(arq/celery/rq 등)를 함께 띄울 때 사용. `Procfile.dev` 의 `web:`/`worker:` 줄로 정의.
-honcho 는 dev 의존성(`uv sync` 시 설치). 포그라운드로 통합 로그 출력, **Ctrl-C 로 전체 종료**(데몬 아님).
+honcho 는 dev 의존성(`uv sync` 시 설치)이며 **백그라운드 데몬화**(nohup+pidfile, `.make/honcho.pid`)되어
+`local-logs`/`local-stop`/`local-restart` 로 제어한다.
 
 ```bash
-make run      # Procfile.dev 의 전체 프로세스 기동
+make local-all      # infra + honcho 백그라운드 기동
+make local-logs      # 통합 로그 추적
+make local-stop      # 전체 종료
 # worker 추가: Procfile.dev 의 'worker:' 줄 주석 해제
+```
+
+pm2 로 대체하려면(Node/npx 필요):
+
+```bash
+make local-all PROC_MGR=pm2      # ecosystem.config.cjs 기반 pm2 데몬 기동
+make local-logs PROC_MGR=pm2
+make local-stop PROC_MGR=pm2
 ```
 
 ### 환경 오버라이드
 
 ```bash
-make up ENV=dev         # .env.dev 사용
-make build ENV=staging  # .env.staging 사용
+make up ENV=dev              # .env.dev 사용 (infra만)
+make dev-all                 # .env.dev 기반 app+infra 전체 스택
+make staging-all             # .env.staging 기반 app+infra 전체 스택
 ```
 
 ## 환경 변수
