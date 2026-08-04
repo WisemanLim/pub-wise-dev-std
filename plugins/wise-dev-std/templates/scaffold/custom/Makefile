@@ -5,7 +5,8 @@
         local-all local-logs local-stop local-restart \
         dev-all dev-build dev-logs dev-stop dev-restart \
         staging-all staging-build staging-logs staging-stop staging-restart \
-        prod-all prod-build prod-logs prod-stop prod-restart
+        prod-all prod-logs prod-stop prod-restart \
+        local-down dev-down staging-down prod-down
 ENV ?= local
 ENV_FILE := $(wildcard .env.$(ENV))
 DC := docker compose $(if $(ENV_FILE),--env-file $(ENV_FILE),)   # .env.$(ENV) 존재 시 포트/IP/계정 주입
@@ -58,10 +59,15 @@ staging-stop:     ; docker compose --env-file .env.staging --profile app down --
 staging-restart:  ; docker compose --env-file .env.staging --profile app restart $(SVC)
 
 prod-all:         ; docker compose --env-file .env.prod --profile app up -d
-prod-build:       ; docker compose --env-file .env.prod --profile app up -d --build
 prod-logs:        ; docker compose --env-file .env.prod --profile app logs -f $(SVC)
 prod-stop:        ; docker compose --env-file .env.prod --profile app down --remove-orphans
 prod-restart:     ; docker compose --env-file .env.prod --profile app restart $(SVC)
+
+## --- 하위호환 별칭 / backward-compat aliases (recipe 없이 선행 타겟만 실행) ---
+local-down:      local-stop      ## [local] local-stop 별칭 (하위호환)
+dev-down:        dev-stop        ## [dev] dev-stop 별칭 (하위호환)
+staging-down:    staging-stop    ## [staging] staging-stop 별칭 (하위호환)
+prod-down:       prod-stop       ## [prod] prod-stop 별칭 (하위호환)
 
 ## --- app 실행 (base_profile 교체 후 활성화) ---
 dev:

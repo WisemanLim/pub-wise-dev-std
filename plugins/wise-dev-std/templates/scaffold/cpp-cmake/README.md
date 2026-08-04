@@ -93,7 +93,7 @@ make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 | `make local-stop` | **[local]** goreman 종료 + infra 정리 |
 | `make local-restart` | **[local]** goreman 재기동 (infra 유지) |
 | `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`, 기존 이미지) |
-| `make dev-build` / `staging-build` / `prod-build` | 환경별 이미지 재빌드 후 기동 |
+| `make dev-build` / `staging-build` | 환경별 이미지 재빌드 후 기동 (prod 는 CI/CD 산출물 전제로 미제공) |
 | `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
 | `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
 | `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |

@@ -78,19 +78,29 @@ preflight 경고(WARN)는 선택적 도구로 `make local-all`(멀티프로세�
 3. `docker-compose.override.yml` (dev/staging 용 서비스: postgres/redis[/pgvector/neo4j/minio]).
    - override 의 포트도 `${BIND_HOST:-127.0.0.1}:${<SVC>_PORT:-<default>}:<container>` 형식으로만 노출.
 4. `.env.example` (커밋용, placeholder만 — 위 필수 키 전부 포함) + `.gitignore` 에 `.env.local/.env.dev/.env.staging/.env.prod` 추가.
-5. **local 멀티프로세스 구성 검증/보완 (service 전용)** — scaffold 가 만든 프로세스 매니저 구성을 확인하고 누락 시 생성:
-   - 프로파일 `run_methods.direct.local_pm` 기준 설정 파일 존재 확인:
+5. **Makefile 멀티프로세스/환경별 원샷 타겟 검증·보완 (service 전용, env-init 매번 실행)** — scaffold 가 만든
+   Makefile 이 아래 타겟을 **전부** 갖추고 있는지 확인하고, 누락되었거나 구버전(`run`/`stop`/`restart`/`logs`/`ps`
+   또는 `local-down`/`dev-down` 만 있고 `local-all`/`local-logs`/`local-stop` 등이 없는 구조)이면
+   project-scaffolder 스킬의 Makefile 규칙(§2)대로 **재생성/패치**한다:
+   - **local**: `local-all`(infra+프로세스매니저 백그라운드 기동) / `local-logs`(로그 tail) / `local-stop`
+     (프로세스+infra 동시 정지) / `local-restart` / `local-down`(=`local-stop` 하위호환 별칭) / `ps`.
+   - **dev/staging**: `<env>-all` / `<env>-build` / `<env>-logs` / `<env>-stop` / `<env>-restart` /
+     `<env>-down`(하위호환 별칭) — **한 번의 명령으로 그 환경 전체(frontend+backend+infra)를 기동·정지·재기동·로그
+     추적**할 수 있어야 한다(단계별 `make dev`→`make run` 식 수동 순차 구동 금지).
+   - **prod**: `prod-all` / `prod-logs` / `prod-stop` / `prod-restart` / `prod-down` — **`prod-build` 는
+     두지 않는다**(prod 이미지는 CI/CD 파이프라인 산출물 전제, 로컬 재빌드 경로 미제공).
+   - 프로세스 매니저 설정 파일 존재 확인: 프로파일 `run_methods.direct.local_pm` 기준
      PM2=`ecosystem.config.cjs` (node) · honcho/goreman/overmind=`Procfile.dev` (python/go/java/c#/c++/rust).
-   - 누락 시 `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/` 에서 복사(+`{{PROJECT_NAME}}` 치환).
-     템플릿에도 없으면 project-scaffolder 스킬 "local 멀티프로세스 매니저" 항 규칙으로 생성
-     (web 1줄 + worker 주석 예시).
-   - `Makefile` 에 `local-all/local-logs/local-stop/local-restart` 타겟 존재 확인, 누락 시 스킬 규칙대로 보강.
-   - 설정 파일의 포트는 `.env.local` 의 `API_PORT` 등과 일치해야 함 — 불일치 시 보고 후 정정.
+     누락 시 `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/` 에서 복사(+`{{PROJECT_NAME}}` 치환). 템플릿에도
+     없으면 project-scaffolder 스킬 "local 멀티프로세스 매니저" 항 규칙으로 생성(web 1줄 + worker 주석 예시).
    - python-fastapi 는 `PROC_MGR ?= honcho`(기본) / `pm2`(대안, `ecosystem.config.cjs`) 두 경로 모두 존재하는지 확인.
+   - 설정 파일의 포트는 `.env.local` 의 `API_PORT` 등과 일치해야 함 — 불일치 시 보고 후 정정.
    - 매니저 설치는 실행하지 않음: PM2/honcho 는 devDep 포함 여부만 확인, goreman/overmind 는
      `make preflight` WARN + README 안내로 충분.
+   - 패치 후 `make -n local-all local-logs local-stop dev-all staging-all prod-all` 로 문법 검증(사이드이펙트 없음)하고
+     결과를 보고한다.
    - **native-mobile(ios-swiftui·android-compose)·cross-mobile(flutter/RN) 은 이 단계 전체 생략** —
-     프로세스 매니저 미적용(§0 분류 참조).
+     프로세스 매니저·`<env>-*` 컨테이너 타겟 미적용(§0 분류 참조).
 
 ---
 

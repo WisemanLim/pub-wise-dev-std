@@ -47,7 +47,8 @@ description: >
         local-all local-logs local-stop local-restart \
         dev-all dev-build dev-logs dev-stop dev-restart \
         staging-all staging-build staging-logs staging-stop staging-restart \
-        prod-all prod-build prod-logs prod-stop prod-restart
+        prod-all prod-logs prod-stop prod-restart \
+        local-down dev-down staging-down prod-down
 ENV ?= local
 LOCAL_INFRA ?=   # local 모드 compose 서비스 목록. 비워두면 전체 infra. 예: LOCAL_INFRA=redis
 PROC_MGR ?= <default-mgr>   # python 만: honcho(기본) | pm2(대안, overlay)
@@ -98,10 +99,15 @@ staging-stop:     ; docker compose --env-file .env.staging --profile app down --
 staging-restart:  ; docker compose --env-file .env.staging --profile app restart $(SVC)
 
 prod-all:         ; docker compose --env-file .env.prod --profile app up -d
-prod-build:       ; docker compose --env-file .env.prod --profile app up -d --build
 prod-logs:        ; docker compose --env-file .env.prod --profile app logs -f $(SVC)
 prod-stop:        ; docker compose --env-file .env.prod --profile app down --remove-orphans
 prod-restart:     ; docker compose --env-file .env.prod --profile app restart $(SVC)
+
+## 하위호환 별칭 (recipe 없이 선행 타겟만 실행)
+local-down:      local-stop
+dev-down:        dev-stop
+staging-down:    staging-stop
+prod-down:       prod-stop
 ```
 
 타겟별 용도:
@@ -115,15 +121,20 @@ prod-restart:     ; docker compose --env-file .env.prod --profile app restart $(
 | `ps` | 프로세스 매니저 상태 | local |
 | `local-all` / `local-logs` / `local-stop` / `local-restart` | infra + 프로세스 매니저(web/worker) 일괄 기동·로그·종료·재기동 (백그라운드) | local |
 | `<env>-all` | app+infra 컨테이너 기동 (빌드 없음) | dev/staging/prod |
-| `<env>-build` | 이미지 빌드 후 app+infra 기동 | dev/staging/prod |
+| `<env>-build` | 이미지 빌드 후 app+infra 기동 (**prod 는 미제공** — 이미지는 CI/CD 산출물 전제) | dev/staging |
 | `<env>-logs` | 컨테이너 로그 추적 (SVC=로 특정 서비스) | dev/staging/prod |
 | `<env>-stop` | app+infra 전체 정리 | dev/staging/prod |
 | `<env>-restart` | 컨테이너 재기동 (SVC=로 특정 서비스, 비우면 전체) | dev/staging/prod |
+| `local-down` / `<env>-down` | `local-stop`/`<env>-stop` 의 하위호환 별칭(레시피 없이 선행 타겟 실행) | 모든 환경 |
 
 - **중요**: `up` 은 datastore 만 띄운다. app 서비스(build 컨텍스트 보유)는 compose 에서
   `profiles: [app]` 로 묶어, 코드/Dockerfile 미완 상태에서도 `make up` 이 빌드를 시도해 실패하지 않게 한다.
 - `local-all` 의 `LOCAL_INFRA`: SQLite 사용 시 postgres 불필요 → `LOCAL_INFRA=redis make local-all` 로 redis 만 기동.
 - `<env>-all` vs `<env>-build`: 코드 변경 없이 재시작은 `-all`, Dockerfile/소스 변경 후 재빌드는 `-build`.
+  **prod 는 `-build` 를 두지 않는다** — prod 이미지는 CI/CD 파이프라인 산출물을 pull 하는 것을 전제로 하고,
+  로컬에서 prod 이미지를 재빌드하는 경로를 만들지 않는다(사고 방지).
+- **하위호환 별칭**: 기존 `local-down`/`dev-down`/`staging-down`/`prod-down` 을 쓰던 사용자를 위해
+  각각 `local-stop`/`<env>-stop` 을 그대로 실행하는 레시피 없는 별칭 타겟을 둔다(`<alias>: <target>` 형태).
 - **local/dev/staging/prod 전 환경에 동일한 `-all`/`-logs`/`-stop`/`-restart` 네이밍**을 적용한다 — 환경별로
   다른 커맨드를 외우지 않아도 되게. local 은 프로세스 매니저(호스트) + infra(docker), dev/staging/prod 는
   compose 전체 스택(`--env-file .env.<env> --profile app`)을 대상으로 한다.

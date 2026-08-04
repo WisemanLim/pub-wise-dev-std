@@ -93,7 +93,7 @@ make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 | `make local-stop` | **[local]** Stop goreman + tear down infra |
 | `make local-restart` | **[local]** Restart goreman (infra stays up) |
 | `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`, existing images) |
-| `make dev-build` / `staging-build` / `prod-build` | Rebuild images then start, per env |
+| `make dev-build` / `staging-build` | Rebuild images then start, per env (prod excluded — images assumed to be CI/CD build artifacts) |
 | `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
 | `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
 | `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |

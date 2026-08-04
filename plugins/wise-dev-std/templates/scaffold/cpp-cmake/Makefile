@@ -3,7 +3,7 @@
         local-all local-logs local-stop local-restart \
         dev-all dev-build dev-logs dev-stop dev-restart \
         staging-all staging-build staging-logs staging-stop staging-restart \
-        prod-all prod-build prod-logs prod-stop prod-restart \
+        prod-all prod-logs prod-stop prod-restart \
         preflight sanitize fmt lint
 ENV        ?= local
 BUILD_TYPE ?= Debug        # Debug | Release | RelWithDebInfo
@@ -126,11 +126,15 @@ staging-restart:  ## [staging] 컨테이너 재기동 (SVC=<service>, 비우면 
 ## --- prod: Docker 전체 스택 (.env.prod) ---
 prod-all:      ## [prod] infra + app 컨테이너 기동
 	docker compose --env-file .env.prod --profile app up -d
-prod-build:    ## [prod] 이미지 빌드 후 기동
-	docker compose --env-file .env.prod --profile app up -d --build
 prod-logs:     ## [prod] 컨테이너 로그 추적 (SVC=<service>)
 	docker compose --env-file .env.prod --profile app logs -f $(SVC)
 prod-stop:     ## [prod] app + infra 전체 정리
 	docker compose --env-file .env.prod --profile app down --remove-orphans
 prod-restart:  ## [prod] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
 	docker compose --env-file .env.prod --profile app restart $(SVC)
+
+## --- 하위호환 별칭 / backward-compat aliases (recipe 없이 선행 타겟만 실행) ---
+local-down:      local-stop      ## [local] local-stop 별칭 (하위호환)
+dev-down:        dev-stop        ## [dev] dev-stop 별칭 (하위호환)
+staging-down:    staging-stop    ## [staging] staging-stop 별칭 (하위호환)
+prod-down:       prod-stop       ## [prod] prod-stop 별칭 (하위호환)
