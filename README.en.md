@@ -37,8 +37,8 @@ Standardizes and automates the decisions a developer repeats on every new projec
 | Command | `/wise-dev-std:scaffold`    | Chosen profile → dirs/Makefile/compose/manifest/CI/.env          |
 | Command | `/wise-dev-std:env-init`    | Generate `local/dev/staging/prod` env files + compose override   |
 | Command | `/wise-dev-std:standardize` | Export the standard to `AGENTS.md` + `.cursor/rules`             |
-| Command | `/wise-dev-std:implement`   | After recommend~standardize: implement from PRD + test cycle (`test/impl/<Nth>`) + per-language/platform `.gitignore` |
-| Command | `/wise-dev-std:review`      | **In-depth analysis + line-by-line code review, run together** → `.review/` (code review defaults to Level 2, confirm/auto-recommend) |
+| Command | `/wise-dev-std:implement`   | **Implement the whole PRD autonomously** — one confirmation, then per-Epic implement→test→fix→retest until all PASS (`test/impl/<Nth>`), refresh READMEs (KO/EN) |
+| Command | `/wise-dev-std:review` etc. | **Optional commands** (not required): review · reverse-prd · req-update · standardize · test · ui-design — quick guide in §4-5 |
 | Skill   | `prd-advisor`                    | PRD authoring knowledge base (5-question survey + One-Page/full-spec template + KSIC KPI·NFR suggestions) |
 | Skill   | `stack-advisor`                  | Stack decision knowledge base (decision matrix + KSIC industry map) |
 | Skill   | `project-scaffolder`             | Structure-generation rules (incl. `test/` scaffold + domain `COMPLIANCE.md`) |
@@ -157,28 +157,35 @@ Then in the Claude CLI:
 # 4) generate env files (local/dev/staging/prod)
 /wise-dev-std:env-init python-fastapi
 
-# 5) export the standard to Cursor/Antigravity
-/wise-dev-std:standardize python-fastapi
+# 5) implement the whole PRD — one confirmation, then every Epic: implement→test→fix→retest until PASS
+/wise-dev-std:implement python-fastapi
+#   single Epic / resume / confirm per Epic:  --epic 3  |  --from 4  |  --step
 
-# 6) implement from PRD + test (creates test/impl/<Nth> per iteration)
-/wise-dev-std:implement python-fastapi "login API"
+# (optional) code review, IDE export, etc. — see §4-5
+```
 
-# 7) in-depth analysis + line-by-line code review (together) → .review/
-/wise-dev-std:review                       # code review defaults to Level 2 (confirm/auto-recommend)
-/wise-dev-std:review --level 3 --pdf true  # explicit level + PDF
-/wise-dev-std:review --only code ./src     # code review only, specific path
+Running the generated project uses one Makefile vocabulary, **identical across environments**:
+
+```
+make preflight                       # tool check
+make local-build && make local-all   # local: deps/build + docker infra + host process manager
+make local-logs | local-stop | local-restart | local-ps
+make dev-all | staging-all | prod-all          # full container stack (.env.<env>)   (+ dev-build / staging-build)
+make dev-logs | dev-stop | dev-restart | dev-ps  # same for staging-*, prod-*
+make db-migrate | db-seed | db-reset | db-fresh [ENV=dev]   # reset refused for prod
+make test | deploy | help
 ```
 
 ---
 
-### 4-2. Stage-by-stage guide (prd → review)
+### 4-2. Stage-by-stage guide (prd → implement)
 
-The 7 commands form **one pipeline**. Each stage takes the previous stage's output as input and hands off to the next.
-Order: **prd → recommend → scaffold → env-init → standardize → implement → review.**
+Five commands form **one pipeline**. Each stage takes the previous stage's output as input and hands off to the next.
+Order: **prd → recommend → scaffold → env-init → implement.** (standardize, review, … are optional — §4-5)
 
 ```
-PRD.md  →  recommend  →  scaffold   →  env-init  →  standardize →  implement  →  review
- define     stack          skeleton     env files     IDE std       build+test    review
+PRD.md  →  recommend  →  scaffold   →  env-init  →  implement (autonomous loop)
+ define     stack          skeleton     env files     build+test per Epic
 ```
 
 #### Stage 1 — `prd` · define requirements
@@ -231,7 +238,7 @@ PRD.md  →  recommend  →  scaffold   →  env-init  →  standardize →  imp
 - **Next**: `standardize`.
 - 💡 Mobile `api_base` host: iOS Simulator=`localhost`, Android Emulator=`10.0.2.2`.
 
-#### Stage 5 — `standardize` · export an IDE-neutral standard
+#### (optional) `standardize` · export an IDE-neutral standard — see §4-5
 
 - **Purpose**: Export the Claude plugin standard into a format **Cursor·Antigravity also read**.
 - **Command**: `/wise-dev-std:standardize [profile-id] [--domain <id>]`
@@ -242,37 +249,32 @@ PRD.md  →  recommend  →  scaffold   →  env-init  →  standardize →  imp
 - **Next**: `implement`.
 - 💡 Shell installer: `scripts/install-portable.sh <target-dir>` (`--zip` to package for distribution).
 
-#### Stage 6 — `implement` · build + test
+#### Stage 5 — `implement` · implement the whole PRD + test
 
-- **Purpose**: Implement PRD features on the standardized env and apply the **same test cycle**.
-- **Command**: `/wise-dev-std:implement [profile-id] [feature-keyword]`
-- **Preconditions**: recommend → scaffold → env-init → standardize complete.
-- **Behavior**:
-  1. **dev-env test (once)** — verify the standard env is set up correctly → `test/dev-env/`.
-  2. Ensure `.gitignore` (language + platform, idempotent).
-  3. Extract the `feature-keyword` scope from PRD → implement on the standard structure (surgical changes).
-  4. **Test cycle** — new iteration `test/impl/<Nth>/`: scenario→run→fix&retest→result.
-     If `COMPLIANCE.md` exists, include the domain's compliance test cases.
-  5. **Refresh READMEs** — analyze the implemented code and update detailed KO `README.md` + EN `README.en.md`.
-- **Output**: feature code, `test/impl/<Nth>/{scenario,result}.md` + `logs/`, refreshed READMEs.
-- **Next**: `review` (or repeat `implement` for the next feature).
-- 💡 Iteration (`1st`,`2nd`,…) auto-increments; existing iteration dirs are never overwritten.
+- **Purpose**: Implement **every Epic** in the PRD in one call on top of the standard environment, tests included.
+- **Command**: `/wise-dev-std:implement [profile-id] [--epic N] [--from N] [--step] [--max-retry K]`
+- **Prerequisite**: scaffold → env-init done (Makefile + `.env.*`). standardize is optional.
+- **What it does**:
+  1. **dev-env test (once)** — `make preflight → local-build → local-all → db-migrate → test` → `test/dev-env/`.
+  2. Parse the PRD → **Epic implementation plan** (features · acceptance criteria · dependencies · status).
+  3. **One user confirmation** — approve the plan + answer only the ambiguous/missing PRD items. No further prompts.
+  4. **Epic loop** — per Epic: implement → test in `test/impl/<Nth>/` → on failure fix & retest (`--max-retry`, default 5) → PASS → next Epic.
+     Epics exceeding the limit are marked BLOCKED and the loop continues. No need to re-invoke per Epic (`--step` asks each time).
+  5. Full regression `make test` → if anything is BLOCKED, ask for the needed decisions **once**, then rerun those Epics.
+  6. **Refresh READMEs (KO/EN)** + living-doc PRD consistency pass.
+- **Output**: feature code, per-Epic `test/impl/<Nth>/{scenario,result}.md` + `logs/`, updated README/PRD, final plan table.
+- 💡 Iterations (`1st`,`2nd`,…) auto-increment and are never overwritten; retests accumulate rounds inside the same iteration.
 
-#### Stage 7 — `review` · in-depth analysis + code review
+### 4-5. Optional commands (not required — quick guide)
 
-- **Purpose**: Produce **two reviews at once** on the implemented code.
-- **Command**: `/wise-dev-std:review [target-paths...] [--level 0~4] [--only depth|code|both] [--pdf true|false]`
-- **Input**: analysis paths (default cwd), (optional) code-review level/scope/PDF. Uses PRD·AGENTS·profile traces as basis.
-- **Behavior**:
-  1. **In-depth** (`depth-reviewer`, always detailed) — stack·license·security·maintenance·architecture·legal·rating.
-  2. **Code review** (`code-reviewer`, default Level 2) — line by line. Without `--level`, auto-recommends then confirms once.
-  - The two are independent → recommended to run **in parallel** via two subagents.
-- **Output**: `.review/REVIEW-InDepth.md` + `.review/CODE-REVIEW-Lv<N>/` (INDEX + per-file reports), plus PDF if requested.
-- **Next**: fix the risks found → re-run `implement` → `review` again (loop).
-- 💡 Levels: 0=non-developer/PM share, 1=junior onboarding, 2=team baseline (default), 3~4=senior/architect.
-
-> **Iteration loop**: typically you loop `implement` ↔ `review` per feature — `implement` for each new feature,
-> `review` as a quality gate at each milestone. Stages 1–5 are usually a one-time setup at project start.
+| Command | When | What |
+|---------|------|------|
+| `/wise-dev-std:review [paths] [--level 0~4] [--only depth\|code]` | You want a quality gate after implementation | In-depth analysis + line-by-line code review → `.review/` |
+| `/wise-dev-std:reverse-prd [path] [--full]` | Existing source without a PRD | Analyze source → derive `PRD.md` |
+| `/wise-dev-std:req-update` | Requirements change mid-development | Propagate to PRD·README·COMPLIANCE docs only (no source edits) |
+| `/wise-dev-std:standardize <profile>` | Also using Cursor/Windsurf/Copilot, … | Export `AGENTS.md` + per-IDE rule files |
+| `/wise-dev-std:test [--area dev-env\|impl]` | Test the current source without the scaffold flow | Run the test-runner cycle immediately |
+| `/wise-dev-std:ui-design` | Project includes a frontend | Design system · references · accessibility stack delta |
 
 ### 4-3. recommend output (shape)
 
@@ -293,10 +295,10 @@ Profile `python-fastapi` example: `app/`, `tests/`, `docker/`, `Makefile`, `dock
 Common entry point:
 
 ```
-make dev      # uv sync && uvicorn --reload  (or compose up)
-make test     # pytest
-make build    # docker build
-make deploy   # helm/argocd
+make preflight | local-build | local-all | local-logs | local-stop     # local (docker infra + honcho/pm2)
+make dev-all | dev-build | dev-logs | dev-stop        # same for staging-*, prod-* (no prod-build)
+make db-migrate | db-seed | db-reset | db-fresh [ENV=<env>]
+make test | deploy | help
 ```
 
 > Safety: the scaffolder only **creates files**. It runs no install/network commands and
@@ -410,7 +412,7 @@ Testing is part of the standard. The same test cycle applies right after standar
 test/
 ├── README.md                 # testing standard overview
 ├── dev-env/                  # standard env verification (once) — after scaffold + env-init
-│   ├── scenario.md           #   deps install, make up, DB connectivity, health, make test
+│   ├── scenario.md           #   make preflight/local-build/local-all, db-migrate, health, make test
 │   ├── result.md
 │   └── logs/
 └── impl/                     # per implementation iteration (implement command)

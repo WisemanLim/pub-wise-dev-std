@@ -83,10 +83,11 @@ testing:
   impl: "test/impl/<Nth>/"
   cycle: "시나리오→빌드·실행→오류시 수정·재시험→결과작성 / scenario→build&run→fix&retest→result"
 
-makefile_targets:
-  dev: "xcodebuild build + iOS Simulator 실행"
+makefile_targets:                 # 공통 진입점 — 모든 환경 동일 네이밍 (템플릿 Makefile 이 단일 기준)
+  run: "setup(ios/android) | local-all(시뮬레이터/에뮬레이터 실행) | local-stop"
+  build: "dev-build | staging-build | prod-build  (xcconfig / flavor / dart-define / eas profile)"
+  common: "test | deploy | help"
   test: "xcodebuild test -scheme App -destination 'platform=iOS Simulator,name=iPhone 15'"
-  build: "fastlane gym (archive → .ipa)"
   deploy: "fastlane pilot (TestFlight) / deliver (App Store)"
 
 references:

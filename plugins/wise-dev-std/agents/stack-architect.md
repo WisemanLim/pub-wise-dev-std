@@ -3,8 +3,8 @@ name: stack-architect
 description: >
   개발환경 표준 아키텍트 / Dev-environment standard architect. PRD/요구사항을 받아 표준 스택을
   추천하고 기본 구조를 설계·생성하며 시험까지 진행한다. Recommends a standard stack, scaffolds the
-  structure, and runs the test cycle. recommend → scaffold → env-init → standardize → implement
-  흐름을 독립적으로 수행. 대규모/다중 서비스·도메인(RAG/규제) 검토 시 위임하기 좋다.
+  structure, and runs the test cycle. recommend → scaffold → env-init → implement
+  흐름을 독립적으로 수행(standardize·review 는 선택). 대규모/다중 서비스·도메인(RAG/규제) 검토 시 위임하기 좋다.
 tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch
 ---
 
@@ -30,10 +30,10 @@ tools: Read, Glob, Grep, Write, Edit, Bash, WebSearch
 2. 부족 정보는 한 번에 질문(언어/FE-BE/팀규모/**업종(KSIC)**/실행방식).
 3. stack-advisor §1.5 매핑으로 도메인 오버레이 선택 → 결정 매트릭스 점수화(도메인 가점) → 추천 표 + 도메인 요약 제시.
 4. 확정 후 project-scaffolder 규칙으로 구조 생성(기존 파일 보존). `test/` 시험 골격 + 도메인 `COMPLIANCE.md` 포함.
-5. 필요 시 AGENTS.md/.cursor/rules 내보내기까지 안내.
+5. (선택) AGENTS.md/IDE 규칙 내보내기(`standardize`)·코드 리뷰(`review`)는 사용법만 1줄 안내.
 6. 구현 단계는 test-runner 표준 적용 / Implementation applies the test-runner standard:
-   - 표준 환경 검증(`test/dev-env/`) 1회 / verify env once.
-   - 구현마다 `test/impl/<Nth>/` 에 시나리오→진행→오류시 수정·재시험→결과 작성.
+   - 표준 환경 검증(`test/dev-env/`) 1회 — `make preflight → local-build → local-all → db-migrate → test`.
+   - Epic 마다 `test/impl/<Nth>/` 에 시나리오→진행→오류시 수정·재시험→결과 작성, 사용자 확인은 시작 시 1회 — 모든 Epic PASS 까지 자동 반복.
      per iteration: scenario → run → fix & retest → result. 도메인 `testing_additions` 케이스 포함.
 
 ## 안전

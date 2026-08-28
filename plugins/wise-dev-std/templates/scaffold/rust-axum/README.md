@@ -36,11 +36,11 @@ rustup update stable
 # 1. 환경 변수 파일 복사
 cp .env.local .env
 
-# 2. 인프라 기동 (Postgres :5432 + Redis :6379)
-make up
+# 2. 의존성 설치/빌드 + 인프라(Postgres :5432 + Redis :6379) + 호스트 프로세스 일괄 기동 (백그라운드)
+make local-build && make local-all
 
-# 3. 개발 서버 실행
-make dev
+# 3. 로그 추적 (Ctrl-C 는 tail 만 종료 · 직접 실행은 `cargo run`)
+make local-logs
 # → http://localhost:3000
 ```
 
@@ -52,21 +52,26 @@ make <target> [ENV=<env>]
 
 | 명령 | 설명 |
 |------|------|
-| `make up` | PostgreSQL + Redis 컨테이너 기동 |
-| `make down` | 전체 컨테이너 종료 및 정리 |
-| `make dev` | 단일 개발 서버 (`cargo run`) |
-| `make local-all` | infra(docker) + **overmind** server(+worker) 일괄 기동, 핫리로드 (백그라운드) |
-| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
-| `make local-stop` | overmind 종료 + infra 정리 |
-| `make local-restart` | server 재시작 (`overmind restart web`, infra 유지) |
-| `make ps` | 프로세스 상태 (`overmind ps`) |
-| `make test` | 전체 테스트 실행 (`cargo test`) |
-| `make build` | Docker 앱 이미지 빌드 (`--profile app`) |
+| `make preflight` | 런타임·도구 버전 호환성 점검 |
+| `make test` | 테스트 실행 (`cargo test`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
-| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
-| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
+| `make help` | 타겟 목록 |
+| `make local-build` | [local] 의존성 설치/호스트 빌드 (`cargo build`) |
+| `make local-all` | [local] infra(docker) + **overmind** 호스트 프로세스 일괄 기동 (백그라운드) |
+| `make local-logs` | [local] 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | [local] 호스트 프로세스 중지 + infra 정리 |
+| `make local-restart` | [local] 호스트 프로세스 재기동 (infra 유지) |
+| `make local-ps` | [local] 프로세스 상태 (`overmind ps`) |
+| `make <env>-all` | [dev\|staging\|prod] infra + app 컨테이너 기동 (`docker compose --env-file .env.<env> --profile app`) |
+| `make <env>-build` | [dev\|staging] 이미지 재빌드 후 기동 (prod 미제공 — CI/CD 산출물) |
+| `make <env>-logs` | [dev\|staging\|prod] 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make <env>-stop` | [dev\|staging\|prod] app + infra 전체 정리 |
+| `make <env>-restart` | [dev\|staging\|prod] 컨테이너 재기동 (`SVC=`로 특정 서비스) |
+| `make <env>-ps` | [dev\|staging\|prod] 컨테이너 상태 |
+| `make db-migrate [ENV=<env>]` | 마이그레이션 적용 (기본 `sqlx migrate run`, `MIGRATE="..."` 로 교체) |
+| `make db-seed [ENV=<env>]` | 시드 데이터 적재 (기본 `cargo run --bin seed`, `SEED="..."` 로 교체) |
+| `make db-reset [ENV=<env>]` | DB 초기화 + 마이그레이션 (local=SQLite 파일 삭제 · 그 외=postgres `schema public` 재생성 · prod 거부) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (예: `make db-fresh ENV=dev`) |
 
 ### 로컬 멀티프로세스 (overmind + cargo-watch)
 
@@ -87,7 +92,7 @@ make local-stop      # 전체 종료
 ### 환경 오버라이드
 
 ```bash
-make up ENV=dev               # .env.dev 사용 (infra만)
+make dev-build               # .env.dev 기반 이미지 재빌드 + 기동 (dev|staging 만)
 make dev-all                  # .env.dev 기반 app+infra 전체 스택
 make staging-all               # .env.staging 기반 app+infra 전체 스택
 ```
@@ -117,8 +122,8 @@ make staging-all               # .env.staging 기반 app+infra 전체 스택
 ### 로컬 개발
 
 ```bash
-make up    # 인프라 기동
-make dev   # cargo run (변경 감지: cargo-watch 권장)
+make local-all    # infra + 호스트 프로세스 백그라운드 기동 (직접 실행: `cargo run`)
+make local-logs   # 로그 추적
 
 # cargo-watch 설치 후:
 cargo install cargo-watch
@@ -147,9 +152,8 @@ cargo clippy -- -D warnings
 ### Docker 이미지 빌드
 
 ```bash
-ENV=staging make build
-# 빌드 후 컨테이너 실행:
-docker compose --profile app up
+make staging-build   # .env.staging 기반 이미지 재빌드 + 전체 스택 기동
+make staging-logs
 ```
 
 > **참고**: Rust 멀티스테이지 빌드는 `cargo-chef` 를 사용해 레이어 캐시를 최적화합니다.

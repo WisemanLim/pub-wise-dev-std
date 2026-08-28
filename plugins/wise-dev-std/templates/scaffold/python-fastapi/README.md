@@ -33,11 +33,11 @@ uv sync
 # 2. 환경 변수 파일 복사
 cp .env.local .env
 
-# 3. 인프라 기동 (Postgres :5432 + Redis :6379)
-make up
+# 3. 의존성 설치/빌드 + 인프라(Postgres :5432 + Redis :6379) + 호스트 프로세스 일괄 기동 (백그라운드)
+make local-build && make local-all
 
-# 4. 개발 서버 실행 (hot-reload)
-make dev
+# 4. 로그 추적 (Ctrl-C 는 tail 만 종료 · 직접 실행은 `uv run uvicorn app.main:app --reload`)
+make local-logs
 # → http://localhost:8000
 # → Swagger UI: http://localhost:8000/docs
 # → ReDoc:      http://localhost:8000/redoc
@@ -51,21 +51,26 @@ make <target> [ENV=<env>]
 
 | 명령 | 설명 |
 |------|------|
-| `make up` | PostgreSQL + Redis 컨테이너 기동 |
-| `make down` | 전체 컨테이너 종료 및 정리 |
-| `make dev` | 단일 개발 서버, 포그라운드 (`uv run uvicorn app.main:app --reload`) |
-| `make local-all` | infra(docker) + web(+worker) 일괄 기동 (백그라운드) |
-| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
-| `make local-stop` | web/worker 중지 + infra 정리 |
-| `make local-restart` | web/worker 재기동 (infra 유지) |
-| `make ps` | Procfile 검증 (`honcho check`) |
-| `make test` | pytest 실행 (`uv run pytest`) |
-| `make build` | Docker 앱 이미지 빌드 (`--profile app`) |
+| `make preflight` | 런타임·도구 버전 호환성 점검 |
+| `make test` | 테스트 실행 (`uv run pytest`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
-| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
-| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
+| `make help` | 타겟 목록 |
+| `make local-build` | [local] 의존성 설치/호스트 빌드 (`uv sync`) |
+| `make local-all` | [local] infra(docker) + **honcho (`PROC_MGR=pm2` 대안)** 호스트 프로세스 일괄 기동 (백그라운드) |
+| `make local-logs` | [local] 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | [local] 호스트 프로세스 중지 + infra 정리 |
+| `make local-restart` | [local] 호스트 프로세스 재기동 (infra 유지) |
+| `make local-ps` | [local] 프로세스 상태 (`honcho check` / `pm2 ls`) |
+| `make <env>-all` | [dev\|staging\|prod] infra + app 컨테이너 기동 (`docker compose --env-file .env.<env> --profile app`) |
+| `make <env>-build` | [dev\|staging] 이미지 재빌드 후 기동 (prod 미제공 — CI/CD 산출물) |
+| `make <env>-logs` | [dev\|staging\|prod] 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make <env>-stop` | [dev\|staging\|prod] app + infra 전체 정리 |
+| `make <env>-restart` | [dev\|staging\|prod] 컨테이너 재기동 (`SVC=`로 특정 서비스) |
+| `make <env>-ps` | [dev\|staging\|prod] 컨테이너 상태 |
+| `make db-migrate [ENV=<env>]` | 마이그레이션 적용 (기본 `uv run alembic upgrade head`, `MIGRATE="..."` 로 교체) |
+| `make db-seed [ENV=<env>]` | 시드 데이터 적재 (기본 `uv run python -m app.seed`, `SEED="..."` 로 교체) |
+| `make db-reset [ENV=<env>]` | DB 초기화 + 마이그레이션 (local=SQLite 파일 삭제 · 그 외=postgres `schema public` 재생성 · prod 거부) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (예: `make db-fresh ENV=dev`) |
 
 ### 로컬 멀티프로세스 (honcho 기본, pm2 대안)
 
@@ -91,7 +96,7 @@ make local-stop PROC_MGR=pm2
 ### 환경 오버라이드
 
 ```bash
-make up ENV=dev              # .env.dev 사용 (infra만)
+make dev-build               # .env.dev 기반 이미지 재빌드 + 기동 (dev|staging 만)
 make dev-all                 # .env.dev 기반 app+infra 전체 스택
 make staging-all             # .env.staging 기반 app+infra 전체 스택
 ```
@@ -121,8 +126,8 @@ make staging-all             # .env.staging 기반 app+infra 전체 스택
 ### 로컬 개발
 
 ```bash
-make up    # 인프라 기동
-make dev   # --reload 로 코드 변경 자동 반영
+make local-all    # infra + 호스트 프로세스 백그라운드 기동 (직접 실행: `uv run uvicorn app.main:app --reload`)
+make local-logs   # 로그 추적
 ```
 
 ### 테스트
@@ -145,9 +150,8 @@ uv run alembic revision --autogenerate -m "add users table"
 ### Docker 이미지 빌드
 
 ```bash
-ENV=staging make build
-# 빌드 후 컨테이너 실행:
-docker compose --profile app up
+make staging-build   # .env.staging 기반 이미지 재빌드 + 전체 스택 기동
+make staging-logs
 ```
 
 ### Kubernetes (Helm)

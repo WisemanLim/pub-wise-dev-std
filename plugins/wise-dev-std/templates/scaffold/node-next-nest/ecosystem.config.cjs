@@ -1,5 +1,5 @@
 // {{PROJECT_NAME}} — PM2 process manager (local / bare-metal multi-process)
-// 호스트 직접 실행 시 web+api 를 한 번에 관리: `make run` (= pnpm exec pm2 start ecosystem.config.cjs)
+// 호스트 직접 실행 시 web+api 를 한 번에 관리: `make local-all` (= pnpm exec pm2 start ecosystem.config.cjs)
 // 컨테이너(K8s)에서는 사용하지 않음. PM2 는 베어메탈 prod 기동에도 재사용 가능.
 module.exports = {
   apps: [

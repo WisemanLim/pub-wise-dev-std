@@ -1,56 +1,59 @@
 # {{PROJECT_NAME}} — rust-axum (정적 템플릿 / static scaffold template)
-.PHONY: dev test build deploy up down dc-logs dc-ps ps preflight \
-        local-all local-logs local-stop local-restart \
-        dev-all dev-build dev-logs dev-stop dev-restart \
-        staging-all staging-build staging-logs staging-stop staging-restart \
-        prod-all prod-logs prod-stop prod-restart \
-        local-down dev-down staging-down prod-down
-ENV ?= local
-ENV_FILE := $(wildcard .env.$(ENV))
-DC := docker compose $(if $(ENV_FILE),--env-file $(ENV_FILE),)   # .env.$(ENV) 존재 시 포트/IP/계정 주입
-OVERMIND ?= overmind
-OVERMIND_PIDFILE := .make/overmind.pid
-OVERMIND_LOGFILE := .make/overmind.log
-# local 모드에서 기동할 compose 서비스만 지정 (비워두면 전체 infra).
-# SQLite 사용 시 postgres 불필요 → 예: LOCAL_INFRA=redis make local-all
+# 표준 타겟 / standard targets (모든 환경 동일 네이밍):
+#   make <env>-all | <env>-build | <env>-logs | <env>-stop | <env>-restart | <env>-ps   env = local | dev | staging | prod
+#   make db-migrate | db-seed | db-reset | db-fresh [ENV=<env>]     make test | deploy | preflight | help
+.PHONY: help preflight test deploy \
+        local-all local-build local-logs local-stop local-restart local-ps \
+        $(foreach e,dev staging prod,$(e)-all $(e)-build $(e)-logs $(e)-stop $(e)-restart $(e)-ps) \
+        db-migrate db-seed db-reset db-fresh
+ENV  ?= local
+ENVS := dev staging prod
+# compose 호출: .env.<env> 있으면 주입, app 프로파일 포함 (컨테이너 전체 스택)
+DC   = docker compose $(if $(wildcard .env.$(ENV)),--env-file .env.$(ENV),) --profile app
+DCE  = docker compose $(if $(wildcard .env.$*),--env-file .env.$*,) --profile app
+# .env.<ENV> 를 셸 환경으로 로드 후 명령 실행 (host 측 migrate/seed 용)
+WITH_ENV = { [ -f .env.$(ENV) ] && set -a && . ./.env.$(ENV) && set +a || true; } &&
+# local 모드에서 기동할 infra 서비스만 지정 (비우면 전체). SQLite 사용 시 예: LOCAL_INFRA=redis make local-all
 LOCAL_INFRA ?=
+SQLITE_DB   ?= local.db
+OVERMIND ?= overmind
+MIGRATE  ?= sqlx migrate run
+SEED     ?= cargo run --bin seed
+help:  ## 타겟 목록
+	@grep -hE '^[a-z][a-z-]*:.*## ' $(MAKEFILE_LIST) | sed -E 's/:[^#]*##/\t/' | awk -F'\t' '{printf "  %-16s %s\n", $$1, $$2}'
+	@echo "  <env>-all        [dev|staging|prod] infra + app 컨테이너 기동 (기존 이미지)"
+	@echo "  <env>-build      [dev|staging] 이미지 재빌드 후 기동 (prod 미제공 — CI/CD 산출물)"
+	@echo "  <env>-logs       [dev|staging|prod] 컨테이너 로그 추적 (SVC=<service>)"
+	@echo "  <env>-stop       [dev|staging|prod] app + infra 전체 정리"
+	@echo "  <env>-restart    [dev|staging|prod] 컨테이너 재기동 (SVC=<service>)"
+	@echo "  <env>-ps         [dev|staging|prod] 컨테이너 상태"
+	@echo "  db-* 는 ENV=<env> 로 대상 지정 (기본 local)"
 
 ## --- 사전 호환성 점검 / Preflight (env-init 전 실행 권장) ---
 preflight:  ## 런타임·도구 버전 호환성 점검
 	@echo "=== Preflight: rust-axum ==="
-	@command -v rustc  >/dev/null 2>&1 || (echo "FAIL: Rust 미설치 — curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh" && exit 1)
-	@command -v cargo  >/dev/null 2>&1 || (echo "FAIL: cargo 미설치" && exit 1)
+	@command -v rustc >/dev/null 2>&1 || (echo "FAIL: Rust 미설치 — curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh" && exit 1)
+	@command -v cargo >/dev/null 2>&1 || (echo "FAIL: cargo 미설치" && exit 1)
 	@command -v docker >/dev/null 2>&1 || (echo "FAIL: Docker 미설치" && exit 1)
-	@$(DC) version >/dev/null 2>&1 || (echo "FAIL: docker compose v2 필요 (docker-compose v1 아님)" && exit 1)
-	@rustc --version | awk '{print "Rust: " $$2}'
-	@command -v overmind >/dev/null 2>&1 || echo "WARN: overmind 미설치 — brew install overmind (make local-all 필요 시, tmux 필요)"
-	@command -v cargo-watch >/dev/null 2>&1 || echo "WARN: cargo-watch 미설치 — cargo install cargo-watch (핫리로드 필요 시)"
+	@docker compose version >/dev/null 2>&1 || (echo "FAIL: docker compose v2 필요 (docker-compose v1 아님)" && exit 1)
+	@command -v overmind >/dev/null 2>&1 || echo "WARN: overmind 미설치 — brew install overmind (tmux 필요, make local-all 필요)"
+	@command -v cargo-watch >/dev/null 2>&1 || echo "WARN: cargo-watch 미설치 — cargo install cargo-watch (핫리로드)"
+	@command -v sqlx >/dev/null 2>&1 || echo "WARN: sqlx-cli 미설치 — cargo install sqlx-cli (make db-migrate 필요)"
 	@echo "=== Preflight OK ==="
 
-## --- infra (DB/캐시, app 제외) ---
-up:    ## docker infra 기동 (postgres/redis — app 컨테이너 제외)
-	$(DC) up -d
-down:  ## infra 전체 정리
-	$(DC) --profile app down --remove-orphans
+## --- 공통 / common ---
+test:    ## 테스트 실행
+	cargo test
+deploy:  ## K8s 배포 (Helm)
+	helm upgrade --install {{PROJECT_NAME}} ./deploy/helm
 
-## --- docker-compose 공통 유틸 ---
-dc-logs:  ## $(DC) 로그 추적 (SVC=<service> 로 특정 서비스 지정)
-	$(DC) logs -f $(SVC)
-dc-ps:    ## $(DC) 컨테이너 상태
-	$(DC) ps
-
-## --- local 직접 실행 (포그라운드, 단일 프로세스) ---
-dev:    ; cargo run
-test:   ; cargo test
-build:  ; $(DC) --profile app build
-deploy: ; helm upgrade --install {{PROJECT_NAME}} ./deploy/helm
-
-ps:  ## overmind 프로세스 상태
-	$(OVERMIND) ps || echo "먼저 make local-all"
-
-## --- local-all: infra + overmind(server+worker) 한 번에 기동 (백그라운드, 핫리로드) ---
+## --- local: infra(docker) + 호스트 프로세스 매니저 (overmind) ---
+local-build:    ## [local] 의존성 설치/호스트 빌드
+	cargo build
+OVERMIND_PIDFILE := .make/overmind.pid
+OVERMIND_LOGFILE := .make/overmind.log
 local-all:      ## [local] infra(docker) + overmind 일괄 기동 (백그라운드)
-	$(DC) up -d $(LOCAL_INFRA)
+	docker compose $(if $(wildcard .env.local),--env-file .env.local,) up -d $(LOCAL_INFRA)
 	@mkdir -p .make
 	@if [ -f $(OVERMIND_PIDFILE) ] && kill -0 $$(cat $(OVERMIND_PIDFILE)) 2>/dev/null; then \
 	  echo "overmind 이미 실행 중 (pid $$(cat $(OVERMIND_PIDFILE)))"; \
@@ -61,48 +64,43 @@ local-all:      ## [local] infra(docker) + overmind 일괄 기동 (백그라운�
 local-logs:     ## [local] 통합 로그 추적 (Ctrl-C 로 tail 종료 — 프로세스는 유지)
 	@touch $(OVERMIND_LOGFILE) && tail -f $(OVERMIND_LOGFILE)
 local-stop:     ## [local] overmind 종료 + infra 정리
-	$(OVERMIND) stop || true
+	$(OVERMIND) stop 2>/dev/null || true
 	@if [ -f $(OVERMIND_PIDFILE) ]; then kill $$(cat $(OVERMIND_PIDFILE)) 2>/dev/null || true; rm -f $(OVERMIND_PIDFILE); fi
-	$(DC) down --remove-orphans
+	docker compose $(if $(wildcard .env.local),--env-file .env.local,) down --remove-orphans
 local-restart:  ## [local] overmind 재기동 (infra 유지)
 	$(OVERMIND) restart web || true
+local-ps:       ## [local] 프로세스 상태
+	$(OVERMIND) ps 2>/dev/null || echo "먼저 make local-all"
 
-## --- dev: Docker 전체 스택 (.env.dev) ---
-dev-all:      ## [dev] infra + app 컨테이너 기동 (기존 이미지 사용)
-	docker compose --env-file .env.dev --profile app up -d
-dev-build:    ## [dev] 이미지 빌드 후 기동 (코드 변경 후 재빌드 포함)
-	docker compose --env-file .env.dev --profile app up -d --build
-dev-logs:     ## [dev] 컨테이너 로그 추적 (SVC=<service>)
-	docker compose --env-file .env.dev --profile app logs -f $(SVC)
-dev-stop:     ## [dev] app + infra 전체 정리
-	docker compose --env-file .env.dev --profile app down --remove-orphans
-dev-restart:  ## [dev] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
-	docker compose --env-file .env.dev --profile app restart $(SVC)
+## --- dev/staging/prod: Docker 전체 스택 (.env.<env> + app 프로파일) ---
+$(ENVS:%=%-all):     %-all:      # [<env>] infra + app 컨테이너 기동 (기존 이미지)
+	$(DCE) up -d
+$(filter-out prod-build,$(ENVS:%=%-build)): %-build:  # [dev|staging] 이미지 재빌드 후 기동 (prod 는 CI/CD 산출물 — 미제공)
+	$(DCE) up -d --build
+$(ENVS:%=%-logs):    %-logs:     # [<env>] 컨테이너 로그 추적 (SVC=<service>)
+	$(DCE) logs -f $(SVC)
+$(ENVS:%=%-stop):    %-stop:     # [<env>] app + infra 전체 정리
+	$(DCE) down --remove-orphans
+$(ENVS:%=%-restart): %-restart:  # [<env>] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
+	$(DCE) restart $(SVC)
+$(ENVS:%=%-ps):      %-ps:       # [<env>] 컨테이너 상태
+	$(DCE) ps
+prod-build:
+	@echo "prod-build 미제공 — prod 이미지는 CI/CD 파이프라인 산출물을 사용 (make prod-all)"; exit 1
 
-## --- staging: Docker 전체 스택 (.env.staging) ---
-staging-all:      ## [staging] infra + app 컨테이너 기동
-	docker compose --env-file .env.staging --profile app up -d
-staging-build:    ## [staging] 이미지 빌드 후 기동
-	docker compose --env-file .env.staging --profile app up -d --build
-staging-logs:     ## [staging] 컨테이너 로그 추적 (SVC=<service>)
-	docker compose --env-file .env.staging --profile app logs -f $(SVC)
-staging-stop:     ## [staging] app + infra 전체 정리
-	docker compose --env-file .env.staging --profile app down --remove-orphans
-staging-restart:  ## [staging] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
-	docker compose --env-file .env.staging --profile app restart $(SVC)
-
-## --- prod: Docker 전체 스택 (.env.prod) ---
-prod-all:      ## [prod] infra + app 컨테이너 기동
-	docker compose --env-file .env.prod --profile app up -d
-prod-logs:     ## [prod] 컨테이너 로그 추적 (SVC=<service>)
-	docker compose --env-file .env.prod --profile app logs -f $(SVC)
-prod-stop:     ## [prod] app + infra 전체 정리
-	docker compose --env-file .env.prod --profile app down --remove-orphans
-prod-restart:  ## [prod] 컨테이너 재기동 (SVC=<service>, 비우면 전체)
-	docker compose --env-file .env.prod --profile app restart $(SVC)
-
-## --- 하위호환 별칭 / backward-compat aliases (recipe 없이 선행 타겟만 실행) ---
-local-down:      local-stop      ## [local] local-stop 별칭 (하위호환)
-dev-down:        dev-stop        ## [dev] dev-stop 별칭 (하위호환)
-staging-down:    staging-stop    ## [staging] staging-stop 별칭 (하위호환)
-prod-down:       prod-stop       ## [prod] prod-stop 별칭 (하위호환)
+## --- DB (ENV=local|dev|staging|prod, 기본 local) ---
+db-migrate:  ## 마이그레이션 적용 (MIGRATE 변수)
+	$(WITH_ENV) $(MIGRATE)
+db-seed:     ## 시드 데이터 적재 (SEED 변수)
+	$(WITH_ENV) $(SEED)
+db-reset:    ## DB 스키마 초기화 + 마이그레이션 (local=SQLite 파일 삭제 · 그 외=postgres schema 재생성) — 데이터 삭제!
+ifeq ($(ENV),prod)
+	@echo "prod DB reset 금지"; exit 1
+else ifeq ($(ENV),local)
+	rm -f $(SQLITE_DB)
+else
+	$(DC) exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"'
+endif
+	$(MAKE) db-migrate ENV=$(ENV)
+db-fresh: db-reset  ## db-reset + 시드 적재
+	$(MAKE) db-seed ENV=$(ENV)

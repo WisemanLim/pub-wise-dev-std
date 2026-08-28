@@ -50,16 +50,16 @@ scaffold + env-init 완료 후 1회. After scaffold + env-init.
 
 **서버 프로파일 (`kind: service`)**:
 - 의존성 설치 가능 여부 / deps installable (`uv sync` / `pnpm i` / `go mod download` / `cargo build`)
-- 컨테이너 기동 / containers up (`make up` 또는 `docker compose up -d`)
+- 컨테이너 기동 / containers up (`make local-all` — infra + 프로세스 매니저)
 - DB 연결 / DB connectivity (local=sqlite, dev+=postgres)
-- 헬스 체크 / health endpoint (`make dev` 후 `/health` 또는 루트 응답)
+- 헬스 체크 / health endpoint (`make local-all` 후 `/health` 또는 루트 응답)
 - 표준 진입점 / standard targets (`make test` 동작)
 
 **모바일 프로파일 (`kind: mobile`)** — compose/DB 케이스 대신:
 - 툴체인 확인 / toolchain (`flutter doctor` · `xcodebuild -version` · `sdkmanager --list` · `node`+`expo --version`)
 - 의존성 설치 / deps (`flutter pub get` · `pnpm i` · `pod install` · Gradle sync)
 - 시뮬레이터·에뮬레이터 부팅 / boot simulator·emulator (iOS Simulator · Android Emulator)
-- 디버그 빌드·실행 성공 / debug build & run (`make dev` → 앱이 시뮬레이터에 뜨고 기대 화면 렌더)
+- 디버그 빌드·실행 성공 / debug build & run (`make local-all` → 앱이 시뮬레이터에 뜨고 기대 화면 렌더)
 - 표준 진입점 / standard targets (`make test` 동작: flutter test / xcodebuild test / gradlew test / jest)
 
 ### 2-2. impl (구현 시험 / implementation tests — every iteration)

@@ -78,10 +78,11 @@ testing:
   impl: "test/impl/<Nth>/"                         # 구현마다
   cycle: "시나리오→빌드·실행→오류시 수정·재시험→결과작성 / scenario→build&run→fix&retest→result"
 
-makefile_targets:
-  dev: "flutter run (시뮬레이터/에뮬레이터)"
+makefile_targets:                 # 공통 진입점 — 모든 환경 동일 네이밍 (템플릿 Makefile 이 단일 기준)
+  run: "setup(ios/android) | local-all(시뮬레이터/에뮬레이터 실행) | local-stop"
+  build: "dev-build | staging-build | prod-build  (xcconfig / flavor / dart-define / eas profile)"
+  common: "test | deploy | help"
   test: "flutter test && flutter analyze"
-  build: "flutter build ipa / flutter build appbundle"
   deploy: "fastlane ios beta / fastlane android beta (TestFlight/Play)"
 
 references:

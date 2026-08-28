@@ -34,15 +34,17 @@ Node/TypeScript · Python · Rust · Go · C/C++ (동점이면 이 순서).
 | staging | PostgreSQL | O | prod 동등 구성 검증 |
 | prod | PostgreSQL | (K8s) | Helm + GitOps |
 
-## 실행 방식
-- 직접: `pnpm dev` / `uv run uvicorn app.main:app --reload` / `go run ./cmd/server` / `cargo run`
-- 컨테이너: `docker compose up`
+## 실행 방식 (Makefile 단일 진입점 — 모든 환경 동일 네이밍)
+- `make <env>-all | <env>-build | <env>-logs | <env>-stop | <env>-restart | <env>-ps` (`<env>` = local | dev | staging | prod)
+  - local: docker infra + 호스트 프로세스 매니저(PM2 / honcho / goreman / overmind) · dev/staging/prod: compose 전체 스택(`.env.<env>`)
+  - `prod-build` 는 없다 — prod 이미지는 CI/CD 산출물.
+- DB: `make db-migrate | db-seed | db-reset | db-fresh [ENV=<env>]` (prod reset 거부)
+- 공통: `make preflight | test | deploy | help`. 옛 `make up/down/dev/build` 는 사용하지 않는다.
 - 프로덕션: K8s + Helm. Node 프로세스 관리는 PM2(베어메탈) 또는 K8s.
-- 공통 진입점은 Makefile: `make dev | test | build | deploy`.
 
 ## 시험 / Testing (표준 / standard)
 프로젝트 루트 `test/` 에 시험을 저장한다 / store tests under `test/`.
-- `test/dev-env/` — 표준 환경 구성 검증(1회) / verify the standardized env once (deps, compose up, DB, health, `make test`).
+- `test/dev-env/` — 표준 환경 구성 검증(1회) / verify the standardized env once (`make preflight` → `local-build` → `local-all`, `db-migrate`, health, `make test`).
 - `test/impl/<Nth>/` — 구현마다 차수 디렉터리(`1st`,`2nd`,…) / one dir per implementation iteration.
 - 사이클 / cycle: 시험 시나리오 작성 → 시험 진행 → 오류 발견 시 수정·재시험 → 시험결과 작성.
   scenario → run → fix & retest on failure → write result.

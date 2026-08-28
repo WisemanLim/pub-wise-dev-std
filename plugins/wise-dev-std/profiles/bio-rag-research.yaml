@@ -52,7 +52,7 @@ run_methods:
   direct:
     dev: "포털: pnpm dev / 분석API: uv run uvicorn --reload"
     start: "compose 또는 K8s 권장(다중 서비스)"
-    local_pm: "honcho (Procfile.dev, dev 의존성; 대안 pm2) — make local-all/local-logs/local-stop/local-restart. portal+bff+analysis+worker 백그라운드 통합로그"
+    local_pm: "honcho (Procfile.dev, dev 의존성; 대안 pm2) — make local-all/local-logs/local-stop/local-restart/local-ps. portal+bff+analysis+worker 백그라운드 통합로그"
   container:
     dev: "docker compose up (web, bff, analysis, postgres, pgvector, redis, neo4j, minio)"
 
@@ -114,10 +114,12 @@ testing:
   cycle: "시나리오→진행→오류시 수정·재시험→결과작성 / scenario→run→fix&retest→result"
   rag_eval: "정답 질의셋 기반 recall/MRR/groundedness 케이스 포함 / eval set with grounded answers"
 
-makefile_targets:
-  dev: "compose up (전체 스택)"
+makefile_targets:                 # 공통 진입점 — 모든 환경 동일 네이밍 (템플릿 Makefile 이 단일 기준)
+  env_family: "<env>-all | -build(prod 제외) | -logs | -stop | -restart | -ps  (env = local|dev|staging|prod)"
+  db: "db-migrate | db-seed | db-reset | db-fresh  [ENV=<env>]"
+  common: "preflight | test | deploy | help"
   test: "pnpm -r test + uv run pytest"
-  build: "docker build (각 서비스)"
+  # build: "docker build (각 서비스)"
   deploy: "helm upgrade / argocd sync"
 
 references:

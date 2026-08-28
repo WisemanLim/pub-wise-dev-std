@@ -34,11 +34,11 @@ pnpm install
 # 2. Copy environment file
 cp .env.local .env
 
-# 3. Start infrastructure (Postgres :5432 + Redis :6379)
-make up
+# 3. Install deps / build + start infra (Postgres :5432 + Redis :6379) + host processes (background)
+make local-build && make local-all
 
-# 4. Run all workspace dev servers
-make dev
+# 4. Tail logs (Ctrl-C stops the tail only; or run `pnpm -r dev` directly)
+make local-logs
 # → Next.js: http://localhost:3000
 # → NestJS:  http://localhost:4000
 ```
@@ -54,21 +54,26 @@ make <target> [ENV=<env>]
 
 | Target | Description |
 |--------|-------------|
-| `make up` | Start PostgreSQL + Redis containers |
-| `make down` | Stop and remove all containers |
-| `make dev` | Run all workspace dev servers, foreground (`pnpm -r dev`) |
-| `make local-all` | Start infra(docker) + **PM2** web+api together (background) |
-| `make local-logs` | Tail aggregated PM2 logs (Ctrl-C stops the tail, processes keep running) |
-| `make local-stop` | Stop & delete PM2 processes + tear down infra |
-| `make local-restart` | Restart PM2 processes (infra stays up) |
-| `make ps` | PM2 process status (`pm2 ls`) |
-| `make test` | Run all workspace tests (`pnpm -r test`) |
-| `make build` | Build all workspace apps (`pnpm -r build`) |
+| `make preflight` | Check runtime/tool version compatibility |
+| `make test` | Run tests (`pnpm -r test`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
-| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
-| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
+| `make help` | List targets |
+| `make local-build` | [local] Install deps / host build (`pnpm install && pnpm -r build`) |
+| `make local-all` | [local] Start infra(docker) + **PM2** host processes together (background) |
+| `make local-logs` | [local] Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | [local] Stop host processes + tear down infra |
+| `make local-restart` | [local] Restart host processes (infra stays up) |
+| `make local-ps` | [local] Process status (`pm2 ls`) |
+| `make <env>-all` | [dev\|staging\|prod] Start infra + app containers (`docker compose --env-file .env.<env> --profile app`) |
+| `make <env>-build` | [dev\|staging] Rebuild image and start (not provided for prod — CI/CD artifact) |
+| `make <env>-logs` | [dev\|staging\|prod] Tail container logs (`SVC=` for one service) |
+| `make <env>-stop` | [dev\|staging\|prod] Tear down app + infra |
+| `make <env>-restart` | [dev\|staging\|prod] Restart containers (`SVC=` for one service) |
+| `make <env>-ps` | [dev\|staging\|prod] Container status |
+| `make db-migrate [ENV=<env>]` | Apply migrations (default `pnpm -C apps/api exec prisma migrate deploy`, override with `MIGRATE="..."`) |
+| `make db-seed [ENV=<env>]` | Load seed data (default `pnpm -C apps/api exec prisma db seed`, override with `SEED="..."`) |
+| `make db-reset [ENV=<env>]` | Reset DB + migrate (local = delete SQLite file; others = recreate postgres `schema public`; refused for prod) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (e.g. `make db-fresh ENV=dev`) |
 
 ### Local multi-process (PM2)
 
@@ -81,7 +86,7 @@ The same config can drive bare-metal prod.
 make local-all       # start infra + PM2 in the background
 make local-logs      # tail aggregated logs
 make local-stop       # stop everything
-make ps               # status
+make local-ps         # status
 ```
 
 ### Target a specific app
@@ -117,7 +122,7 @@ Key variables:
 ### Local Build
 
 ```bash
-make build
+make local-build
 # individual apps:
 pnpm --filter web build
 pnpm --filter api build

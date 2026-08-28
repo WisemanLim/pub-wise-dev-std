@@ -38,7 +38,7 @@ preflight 실패 시 아래 표를 참조해 해결 후 재실행:
 | `FAIL: .NET 8+ 필요` | .NET SDK 구버전 | `brew install dotnet` 또는 공식 사이트 SDK 8 설치 |
 | Gradle + JDK 버전 불일치 | JDK 25 = Gradle 9.5.1+ 필요 | project-scaffolder 스킬 `references/troubleshoot-mobile.md` Gradle 호환표 참조 |
 
-preflight 경고(WARN)는 선택적 도구로 `make local-all`(멀티프로세스) 사용 시에만 필요. `make dev`(단일 실행)는 무시 가능.
+preflight 경고(WARN)는 선택적 도구(프로세스 매니저)로 `make local-all` 사용 시에만 필요.
 
 ---
 
@@ -73,34 +73,27 @@ preflight 경고(WARN)는 선택적 도구로 `make local-all`(멀티프로세�
    | `API_PORT` | 프레임워크별 (fastapi 8000 · go/java/csharp 8080 · rust 3000 · nest 3001) | 서비스 노출 포트 |
    | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `app` | 기본 계정. **실 비밀번호는 placeholder** — Vault/Secret Manager 주입 |
    - 추가 데이터스토어(mysql/mongo/mssql/kafka/rabbitmq/minio/neo4j) 사용 시 동일 규칙으로 `<SVC>_PORT` + 계정 키를 추가.
-   - `Makefile` 은 `docker compose` 대신 `$(DC)`(= `docker compose --env-file .env.$(ENV)`) 를 쓰므로,
-     `make up ENV=dev` 시 `.env.dev` 의 포트/IP/계정이 그대로 주입된다. 하드코딩 값 절대 금지.
+   - `Makefile` 의 `<env>-*` 타겟은 `docker compose --env-file .env.<env> --profile app` 을 쓰므로
+     `make dev-all` 시 `.env.dev` 의 포트/IP/계정이 그대로 주입된다. 하드코딩 값 절대 금지.
 3. `docker-compose.override.yml` (dev/staging 용 서비스: postgres/redis[/pgvector/neo4j/minio]).
    - override 의 포트도 `${BIND_HOST:-127.0.0.1}:${<SVC>_PORT:-<default>}:<container>` 형식으로만 노출.
 4. `.env.example` (커밋용, placeholder만 — 위 필수 키 전부 포함) + `.gitignore` 에 `.env.local/.env.dev/.env.staging/.env.prod` 추가.
-5. **Makefile 멀티프로세스/환경별 원샷 타겟 검증·보완 (service 전용, env-init 매번 실행)** — scaffold 가 만든
-   Makefile 이 아래 타겟을 **전부** 갖추고 있는지 확인하고, 누락되었거나 구버전(`run`/`stop`/`restart`/`logs`/`ps`
-   또는 `local-down`/`dev-down` 만 있고 `local-all`/`local-logs`/`local-stop` 등이 없는 구조)이면
-   project-scaffolder 스킬의 Makefile 규칙(§2)대로 **재생성/패치**한다:
-   - **local**: `local-all`(infra+프로세스매니저 백그라운드 기동) / `local-logs`(로그 tail) / `local-stop`
-     (프로세스+infra 동시 정지) / `local-restart` / `local-down`(=`local-stop` 하위호환 별칭) / `ps`.
-   - **dev/staging**: `<env>-all` / `<env>-build` / `<env>-logs` / `<env>-stop` / `<env>-restart` /
-     `<env>-down`(하위호환 별칭) — **한 번의 명령으로 그 환경 전체(frontend+backend+infra)를 기동·정지·재기동·로그
-     추적**할 수 있어야 한다(단계별 `make dev`→`make run` 식 수동 순차 구동 금지).
-   - **prod**: `prod-all` / `prod-logs` / `prod-stop` / `prod-restart` / `prod-down` — **`prod-build` 는
-     두지 않는다**(prod 이미지는 CI/CD 파이프라인 산출물 전제, 로컬 재빌드 경로 미제공).
+5. **Makefile 표준 타겟 검증·보완 (service 전용, env-init 매번 실행)** — scaffold 가 만든 Makefile 이
+   아래 타겟을 **전부** 갖추고 있는지 확인하고, 누락·구버전(`up/down/dev/build/ps/dc-*`, `*-down` 별칭 등 환경 무관 타겟만 있는 구조)이면
+   `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/Makefile` 로 **교체/패치**(+`{{PROJECT_NAME}}` 치환)한다. 구버전 타겟은 삭제한다(별칭 유지 금지).
+   - 공통: `preflight` / `test` / `deploy` / `help`.
+   - 환경별 동일 네이밍(`<env>` = local/dev/staging/prod): `<env>-all` / `<env>-build`(prod 제외) / `<env>-logs` / `<env>-stop` /
+     `<env>-restart` / `<env>-ps` — **한 명령으로 그 환경 전체(app+infra)** 기동·정지·재기동·로그. local 은 docker infra +
+     호스트 프로세스 매니저, dev/staging/prod 는 `docker compose --env-file .env.<env> --profile app`.
+   - DB: `db-migrate` / `db-seed` / `db-reset` / `db-fresh` (`ENV=<env>`, 기본 local). `MIGRATE`/`SEED` 변수를 프로파일의
+     실제 마이그레이션 도구(alembic/prisma/sqlx/flyway/ef/…)에 맞춰 확인, `--db sqlite` 면 `SQLITE_DB` 경로가 `.env.local` 의
+     `DATABASE_URL` 파일명과 일치해야 한다.
    - 프로세스 매니저 설정 파일 존재 확인: 프로파일 `run_methods.direct.local_pm` 기준
      PM2=`ecosystem.config.cjs` (node) · honcho/goreman/overmind=`Procfile.dev` (python/go/java/c#/c++/rust).
-     누락 시 `${CLAUDE_PLUGIN_ROOT}/templates/scaffold/<id>/` 에서 복사(+`{{PROJECT_NAME}}` 치환). 템플릿에도
-     없으면 project-scaffolder 스킬 "local 멀티프로세스 매니저" 항 규칙으로 생성(web 1줄 + worker 주석 예시).
-   - python-fastapi 는 `PROC_MGR ?= honcho`(기본) / `pm2`(대안, `ecosystem.config.cjs`) 두 경로 모두 존재하는지 확인.
-   - 설정 파일의 포트는 `.env.local` 의 `API_PORT` 등과 일치해야 함 — 불일치 시 보고 후 정정.
-   - 매니저 설치는 실행하지 않음: PM2/honcho 는 devDep 포함 여부만 확인, goreman/overmind 는
-     `make preflight` WARN + README 안내로 충분.
-   - 패치 후 `make -n local-all local-logs local-stop dev-all staging-all prod-all` 로 문법 검증(사이드이펙트 없음)하고
-     결과를 보고한다.
-   - **native-mobile(ios-swiftui·android-compose)·cross-mobile(flutter/RN) 은 이 단계 전체 생략** —
-     프로세스 매니저·`<env>-*` 컨테이너 타겟 미적용(§0 분류 참조).
+     누락 시 템플릿에서 복사(+치환). 설정 파일의 포트는 `.env.local` 의 `API_PORT` 와 일치해야 함 — 불일치 시 보고 후 정정.
+   - 매니저 설치는 실행하지 않음(PM2/honcho 는 devDep 확인, goreman/overmind 는 `make preflight` WARN + README 안내).
+   - 패치 후 `make -n local-all local-logs local-stop dev-all staging-all prod-all db-migrate db-reset ENV=dev` 로 문법 검증하고 결과를 보고한다.
+   - **모바일(native/cross) 은 이 단계 전체 생략** — 모바일 Makefile 은 `setup/local-all/local-stop/test/<env>-build/deploy` 만(§0 참조).
 
 ---
 
@@ -191,7 +184,7 @@ keyPassword=<KEY_PASSWORD>
 const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8000');
 const appEnv = String.fromEnvironment('APP_ENV', defaultValue: 'local');
 ```
-- `Makefile` `dev` 타겟에 `--dart-define-from-file=.env.local` 포함 여부 확인, 누락 시 추가 제안.
+- `Makefile` `local-all` 타겟에 `--dart-define-from-file=.env.local` 포함 여부 확인, 누락 시 추가 제안.
 
 **React Native** 추가 생성:
 - `src/core/env.ts` (없으면):

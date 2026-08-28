@@ -39,8 +39,8 @@ bundle install
 # Install dependencies
 flutter pub get
 
-# Run on default device/emulator
-make dev
+# Run on default device/emulator (.env.local injected; DEVICE='-d <id>' to pick a device)
+make local-all
 
 # iOS simulator
 make ios
@@ -53,11 +53,17 @@ make android
 
 | Target | Description |
 |--------|-------------|
-| `make dev` | Run on default device (`flutter run`) |
-| `make ios` | Run on iOS simulator (`flutter run -d ios`) |
-| `make android` | Run on Android emulator (`flutter run -d android`) |
+| `make help` | List targets |
+| `make local-all` | [local] Run with `.env.local` injected (`flutter run --dart-define-from-file=.env.local`) |
+| `make dev-all` | [dev] Run with `.env.dev` injected |
+| `make staging-all` | [staging] Run with `.env.staging` injected |
+| `make local-stop` | [local] Shut down simulator/emulator |
+| `make ios` | Run on iOS simulator (`flutter run -d ios --dart-define-from-file=.env.local`) |
+| `make android` | Run on Android emulator (`flutter run -d android --dart-define-from-file=.env.local`) |
 | `make test` | Unit/widget tests + analysis (`flutter test && flutter analyze`) |
-| `make build` | Build iOS IPA + Android AAB |
+| `make dev-build` | [dev] debug APK (`.env.dev`) |
+| `make staging-build` | [staging] Android AAB + iOS IPA (`.env.staging`) |
+| `make prod-build` | [prod] Android AAB + iOS IPA (`.env.prod`) |
 | `make deploy` | Fastlane Android `beta` lane (Play internal) |
 
 ### Per-platform deployment

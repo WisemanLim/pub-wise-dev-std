@@ -37,7 +37,7 @@ bundle install
 open {{PROJECT_NAME}}.xcodeproj
 
 # 2. 시뮬레이터에서 빌드/실행
-make dev
+make local-all
 ```
 
 ## Make 사용법
@@ -48,15 +48,20 @@ make <target> [SCHEME=<scheme>] [DEST=<destination>]
 
 | 명령 | 설명 |
 |------|------|
-| `make dev` | 시뮬레이터 빌드 (기본: iPhone 15) |
+| `make help` | 타겟 목록 |
+| `make setup` | 최초 1회 — Xcode CLT 확인, 시뮬레이터 목록, SPM resolve |
+| `make local-all` | [local] 시뮬레이터 Debug 빌드·실행 (기본: iPhone 16, `Config/Debug.xcconfig`) |
+| `make local-stop` | [local] 시뮬레이터 종료 (`xcrun simctl shutdown all`) |
 | `make test` | 시뮬레이터 단위/UI 테스트 |
-| `make build` | Fastlane `build` lane — 아카이브(.ipa) 생성 |
+| `make dev-build` | [dev] Debug 구성 기기 빌드 (`Config/Debug.xcconfig`) |
+| `make staging-build` | [staging] Staging 구성 기기 빌드 (`Config/Staging.xcconfig`) |
+| `make prod-build` | [prod] Fastlane `build` lane — Release 아카이브(.ipa) 생성 (`Config/Release.xcconfig`) |
 | `make deploy` | Fastlane `beta` lane — TestFlight 업로드 |
 
 ### 시뮬레이터 변경
 
 ```bash
-make dev DEST='platform=iOS Simulator,name=iPhone 16 Pro'
+make local-all DEST='platform=iOS Simulator,name=iPhone 16 Pro'
 make test SCHEME=AppTests DEST='platform=iOS Simulator,name=iPad Pro 13-inch'
 ```
 
@@ -74,7 +79,7 @@ xcodebuild -scheme App \
 ### 아카이브 빌드 (로컬)
 
 ```bash
-make build
+make prod-build
 # 또는:
 cd fastlane && bundle exec fastlane ios build
 ```

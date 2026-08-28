@@ -34,11 +34,11 @@ pnpm install
 # 2. 환경 변수 파일 복사
 cp .env.local .env
 
-# 3. 인프라 기동 (Postgres :5432 + Redis :6379)
-make up
+# 3. 의존성 설치/빌드 + 인프라(Postgres :5432 + Redis :6379) + 호스트 프로세스 일괄 기동 (백그라운드)
+make local-build && make local-all
 
-# 4. 전체 워크스페이스 개발 서버 실행
-make dev
+# 4. 로그 추적 (Ctrl-C 는 tail 만 종료 · 직접 실행은 `pnpm -r dev`)
+make local-logs
 # → Next.js: http://localhost:3000
 # → NestJS:  http://localhost:4000
 ```
@@ -54,21 +54,26 @@ make <target> [ENV=<env>]
 
 | 명령 | 설명 |
 |------|------|
-| `make up` | PostgreSQL + Redis 컨테이너 기동 |
-| `make down` | 전체 컨테이너 종료 및 정리 |
-| `make dev` | 전체 워크스페이스 개발 서버 실행, 포그라운드 (`pnpm -r dev`) |
-| `make local-all` | infra(docker) + **PM2** web+api 일괄 기동 (백그라운드) |
-| `make local-logs` | PM2 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
-| `make local-stop` | PM2 프로세스 중지·삭제 + infra 정리 |
-| `make local-restart` | PM2 프로세스 재시작 (infra 유지) |
-| `make ps` | PM2 프로세스 상태 (`pm2 ls`) |
-| `make test` | 전체 워크스페이스 테스트 실행 (`pnpm -r test`) |
-| `make build` | 전체 워크스페이스 빌드 (`pnpm -r build`) |
+| `make preflight` | 런타임·도구 버전 호환성 점검 |
+| `make test` | 테스트 실행 (`pnpm -r test`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
-| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
-| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
+| `make help` | 타겟 목록 |
+| `make local-build` | [local] 의존성 설치/호스트 빌드 (`pnpm install && pnpm -r build`) |
+| `make local-all` | [local] infra(docker) + **PM2** 호스트 프로세스 일괄 기동 (백그라운드) |
+| `make local-logs` | [local] 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | [local] 호스트 프로세스 중지 + infra 정리 |
+| `make local-restart` | [local] 호스트 프로세스 재기동 (infra 유지) |
+| `make local-ps` | [local] 프로세스 상태 (`pm2 ls`) |
+| `make <env>-all` | [dev\|staging\|prod] infra + app 컨테이너 기동 (`docker compose --env-file .env.<env> --profile app`) |
+| `make <env>-build` | [dev\|staging] 이미지 재빌드 후 기동 (prod 미제공 — CI/CD 산출물) |
+| `make <env>-logs` | [dev\|staging\|prod] 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make <env>-stop` | [dev\|staging\|prod] app + infra 전체 정리 |
+| `make <env>-restart` | [dev\|staging\|prod] 컨테이너 재기동 (`SVC=`로 특정 서비스) |
+| `make <env>-ps` | [dev\|staging\|prod] 컨테이너 상태 |
+| `make db-migrate [ENV=<env>]` | 마이그레이션 적용 (기본 `pnpm -C apps/api exec prisma migrate deploy`, `MIGRATE="..."` 로 교체) |
+| `make db-seed [ENV=<env>]` | 시드 데이터 적재 (기본 `pnpm -C apps/api exec prisma db seed`, `SEED="..."` 로 교체) |
+| `make db-reset [ENV=<env>]` | DB 초기화 + 마이그레이션 (local=SQLite 파일 삭제 · 그 외=postgres `schema public` 재생성 · prod 거부) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (예: `make db-fresh ENV=dev`) |
 
 ### 로컬 멀티프로세스 (PM2)
 
@@ -80,7 +85,7 @@ PM2 는 `devDependencies` 에 포함되어 `pnpm install` 후 바로 사용, **�
 make local-all      # infra + PM2 백그라운드 기동
 make local-logs      # 통합 로그 추적
 make local-stop      # 전체 종료
-make ps              # 상태
+make local-ps        # 상태
 ```
 
 ### 특정 앱만 실행
@@ -116,7 +121,7 @@ pnpm --filter api test:e2e   # e2e 테스트
 ### 로컬 빌드
 
 ```bash
-make build
+make local-build
 # 개별 앱:
 pnpm --filter web build
 pnpm --filter api build

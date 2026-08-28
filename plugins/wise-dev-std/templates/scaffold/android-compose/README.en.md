@@ -32,7 +32,7 @@ bundle install
 
 ```bash
 # 1. Build dev flavor debug and install on connected device/emulator
-make dev
+make local-all
 ```
 
 Open in Android Studio: `File > Open > {{PROJECT_NAME}}`.
@@ -41,9 +41,14 @@ Open in Android Studio: `File > Open > {{PROJECT_NAME}}`.
 
 | Target | Description |
 |--------|-------------|
-| `make dev` | Build dev debug and install (`./gradlew installDevDebug`) |
+| `make help` | List targets |
+| `make setup` | Run once — generate Gradle Wrapper, auto-detect SDK path in `local.properties` |
+| `make local-all` | [local] Install devDebug on emulator/device (`./gradlew installDevDebug`) |
+| `make local-stop` | [local] Kill emulator (`adb emu kill`) |
 | `make test` | Run dev unit tests (`./gradlew testDevDebugUnitTest`) |
-| `make build` | Build prod release bundle (`./gradlew bundleProdRelease`) |
+| `make dev-build` | [dev] dev flavor release AAB (`./gradlew bundleDevRelease`) |
+| `make staging-build` | [staging] staging flavor release AAB (`./gradlew bundleStagingRelease`) |
+| `make prod-build` | [prod] prod flavor release AAB (`./gradlew bundleProdRelease`) |
 | `make deploy` | Fastlane `beta` lane — upload to Play Store internal track |
 
 ### Direct Gradle Usage
@@ -70,7 +75,7 @@ Open in Android Studio: `File > Open > {{PROJECT_NAME}}`.
 ### Release AAB
 
 ```bash
-make build
+make prod-build
 # output: app/build/outputs/bundle/prodRelease/app-prod-release.aab
 ```
 

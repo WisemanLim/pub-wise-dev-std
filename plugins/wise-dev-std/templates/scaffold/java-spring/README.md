@@ -31,11 +31,11 @@ Java / Spring Boot 3 REST API 서비스.
 # 1. 환경 변수 파일 복사
 cp .env.local .env
 
-# 2. 인프라 기동 (Postgres :5432 + Redis :6379)
-make up
+# 2. 호스트 빌드 후 infra(Postgres :5432 + Redis :6379) + goreman 백그라운드 기동
+make local-build && make local-all
 
-# 3. 개발 서버 실행 (H2 인메모리 DB, 외부 의존 없음)
-make dev
+# 3. 통합 로그 추적 (수동 대안: ./gradlew bootRun --args='--spring.profiles.active=local')
+make local-logs
 # → http://localhost:8080
 # → H2 Console: http://localhost:8080/h2-console (local 프로파일)
 # → Actuator:   http://localhost:8080/actuator/health
@@ -51,21 +51,26 @@ make <target> [ENV=<env>]
 
 | 명령 | 설명 |
 |------|------|
-| `make up` | PostgreSQL + Redis 컨테이너 기동 |
-| `make down` | 전체 컨테이너 종료 및 정리 |
-| `make dev` | 단일 로컬 개발 서버 (`bootRun --spring.profiles.active=local`) |
-| `make local-all` | infra(docker) + **goreman** api(+worker) 일괄 기동 (백그라운드) |
-| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
-| `make local-stop` | goreman 종료 + infra 정리 |
-| `make local-restart` | goreman 재기동 (infra 유지) |
-| `make ps` | goreman 프로세스 상태 (`goreman run status`) |
+| `make preflight` | 런타임·도구 버전 호환성 점검 |
 | `make test` | 전체 테스트 실행 (`./gradlew test`) |
-| `make build` | Docker 앱 이미지 빌드 (`--profile app`) |
 | `make deploy` | Helm 으로 Kubernetes 배포 |
-| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
-| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
+| `make help` | 타겟 목록 |
+| `make local-build` | [local] 호스트 빌드 (`./gradlew build -x test`) |
+| `make local-all` | [local] infra(docker) + **goreman** api(+worker) 일괄 기동 (백그라운드, `Procfile.dev`) |
+| `make local-logs` | [local] 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | [local] goreman 종료 + infra 정리 |
+| `make local-restart` | [local] goreman 재기동 (infra 유지) |
+| `make local-ps` | [local] goreman 프로세스 상태 (`goreman run status`) |
+| `make <env>-all` | [dev\|staging\|prod] `.env.<env>` + `--profile app` 전체 스택 기동 (기존 이미지) |
+| `make <env>-build` | [dev\|staging] 이미지 재빌드 후 기동 (`prod-build` 미제공 — CI/CD 산출물 사용) |
+| `make <env>-logs` | [dev\|staging\|prod] 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make <env>-stop` | [dev\|staging\|prod] app+infra 전체 정리 |
+| `make <env>-restart` | [dev\|staging\|prod] 컨테이너 재기동 (`SVC=`로 특정 서비스) |
+| `make <env>-ps` | [dev\|staging\|prod] 컨테이너 상태 |
+| `make db-migrate [ENV=<env>]` | 마이그레이션 적용 (`MIGRATE` 변수, 기본 ENV=local) |
+| `make db-seed [ENV=<env>]` | 시드 데이터 적재 (`SEED` 변수) |
+| `make db-reset [ENV=<env>]` | 스키마 초기화 + 마이그레이션 — 데이터 삭제! (local=SQLite 파일 삭제, 그 외=postgres `schema public` 재생성, prod 거부) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (예: `make db-fresh ENV=dev`) |
 
 ### 로컬 멀티프로세스 (goreman)
 
@@ -105,8 +110,8 @@ make local-stop      # 전체 종료
 ### Docker 이미지 빌드
 
 ```bash
-ENV=staging make build
-docker compose --profile app up
+make staging-build      # 이미지 재빌드 + 전체 스택 기동 (.env.staging, --profile app)
+make staging-logs
 ```
 
 ### Kubernetes (Helm)

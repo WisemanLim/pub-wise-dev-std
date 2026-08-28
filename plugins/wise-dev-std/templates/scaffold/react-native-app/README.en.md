@@ -36,7 +36,7 @@ eas login
 pnpm install
 
 # 2. Start Expo dev client (Metro bundler)
-make dev
+make local-all
 # → Scan QR code with Expo Go app (iOS/Android)
 ```
 
@@ -44,11 +44,15 @@ make dev
 
 | Target | Description |
 |--------|-------------|
-| `make dev` | Start Expo dev server (`pnpm expo start`) |
+| `make help` | List targets |
+| `make local-all` | [local] Start Expo dev server (`pnpm expo start`, `.env.local`) |
+| `make local-stop` | [local] Shut down simulator/emulator |
 | `make ios` | Run on iOS simulator (`pnpm expo run:ios`) |
 | `make android` | Run on Android emulator (`pnpm expo run:android`) |
 | `make test` | Jest tests + TypeScript check |
-| `make build` | EAS all-platform build (`eas build -p all --profile production`) |
+| `make dev-build` | [dev] EAS all-platform build (`--profile development`) |
+| `make staging-build` | [staging] EAS all-platform build (`--profile preview`) |
+| `make prod-build` | [prod] EAS all-platform build (`--profile production`) |
 | `make deploy` | EAS all-platform submit (`eas submit -p all`) |
 
 ### Direct EAS Usage
@@ -84,7 +88,7 @@ Environment variables are loaded in `app.json` / `app.config.ts` via the `extra`
 ### EAS Build
 
 ```bash
-make build
+make prod-build
 # or per-platform:
 eas build -p ios --profile production
 eas build -p android --profile production

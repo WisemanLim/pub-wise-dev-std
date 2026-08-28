@@ -36,11 +36,11 @@ rustup update stable
 # 1. Copy environment file
 cp .env.local .env
 
-# 2. Start infrastructure (Postgres :5432 + Redis :6379)
-make up
+# 2. Install deps / build + start infra (Postgres :5432 + Redis :6379) + host processes (background)
+make local-build && make local-all
 
-# 3. Run dev server
-make dev
+# 3. Tail logs (Ctrl-C stops the tail only; or run `cargo run` directly)
+make local-logs
 # → http://localhost:3000
 ```
 
@@ -52,21 +52,26 @@ make <target> [ENV=<env>]
 
 | Target | Description |
 |--------|-------------|
-| `make up` | Start PostgreSQL + Redis containers |
-| `make down` | Stop and remove all containers |
-| `make dev` | Run single dev server (`cargo run`) |
-| `make local-all` | Start infra(docker) + **overmind** server(+worker) together, hot-reload (background) |
-| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
-| `make local-stop` | Stop overmind + tear down infra |
-| `make local-restart` | Restart server (`overmind restart web`, infra stays up) |
-| `make ps` | Process status (`overmind ps`) |
-| `make test` | Run all tests (`cargo test`) |
-| `make build` | Build Docker app image (`--profile app`) |
+| `make preflight` | Check runtime/tool version compatibility |
+| `make test` | Run tests (`cargo test`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
-| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
-| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
+| `make help` | List targets |
+| `make local-build` | [local] Install deps / host build (`cargo build`) |
+| `make local-all` | [local] Start infra(docker) + **overmind** host processes together (background) |
+| `make local-logs` | [local] Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | [local] Stop host processes + tear down infra |
+| `make local-restart` | [local] Restart host processes (infra stays up) |
+| `make local-ps` | [local] Process status (`overmind ps`) |
+| `make <env>-all` | [dev\|staging\|prod] Start infra + app containers (`docker compose --env-file .env.<env> --profile app`) |
+| `make <env>-build` | [dev\|staging] Rebuild image and start (not provided for prod — CI/CD artifact) |
+| `make <env>-logs` | [dev\|staging\|prod] Tail container logs (`SVC=` for one service) |
+| `make <env>-stop` | [dev\|staging\|prod] Tear down app + infra |
+| `make <env>-restart` | [dev\|staging\|prod] Restart containers (`SVC=` for one service) |
+| `make <env>-ps` | [dev\|staging\|prod] Container status |
+| `make db-migrate [ENV=<env>]` | Apply migrations (default `sqlx migrate run`, override with `MIGRATE="..."`) |
+| `make db-seed [ENV=<env>]` | Load seed data (default `cargo run --bin seed`, override with `SEED="..."`) |
+| `make db-reset [ENV=<env>]` | Reset DB + migrate (local = delete SQLite file; others = recreate postgres `schema public`; refused for prod) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (e.g. `make db-fresh ENV=dev`) |
 
 ### Local multi-process (overmind + cargo-watch)
 
@@ -88,7 +93,7 @@ make local-stop       # stop everything
 Override environment:
 
 ```bash
-make up ENV=dev         # infra only, uses .env.dev
+make dev-build          # rebuild image + start from .env.dev (dev|staging only)
 make dev-all            # full app+infra stack from .env.dev
 make staging-all        # full app+infra stack from .env.staging
 ```
@@ -118,8 +123,8 @@ Key variables:
 ### Local Development
 
 ```bash
-make up    # start infrastructure
-make dev   # cargo run (hot-reload via cargo-watch recommended)
+make local-all    # infra + host processes in the background (or run `cargo run` directly)
+make local-logs   # tail logs
 
 # install cargo-watch:
 cargo install cargo-watch
@@ -148,9 +153,8 @@ cargo clippy -- -D warnings
 ### Docker Image
 
 ```bash
-ENV=staging make build
-# run the container:
-docker compose --profile app up
+make staging-build   # rebuild image + start full stack from .env.staging
+make staging-logs
 ```
 
 > **Note**: Rust multi-stage build uses `cargo-chef` for optimized layer caching.

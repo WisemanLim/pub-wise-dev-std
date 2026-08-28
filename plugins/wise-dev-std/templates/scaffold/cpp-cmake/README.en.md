@@ -50,11 +50,11 @@ vcpkg install
 # 3. Copy env file
 cp .env.local .env
 
-# 4. Start infra (Postgres :5432 + Redis :6379) — optional for local (uses SQLite)
-make up
+# 4. Build (Debug) + start infra(docker) + goreman in the background — local uses SQLite, so LOCAL_INFRA=redis is enough
+make local-build && make local-all
 
-# 5. Build and run (Debug)
-make dev
+# 5. Tail aggregated logs (manual alternative: run build/debug/{{PROJECT_NAME}} directly)
+make local-logs
 # → http://localhost:8080
 ```
 
@@ -64,56 +64,54 @@ make dev
 make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 ```
 
-### Build
+### Common
 
 | Command | Description |
 |---------|-------------|
 | `make preflight` | Runtime and tool version compatibility check |
-| `make configure` | CMake configure (CMakePresets.json, generates compile_commands.json) |
-| `make build` | Compile (`cmake --build`, parallel, auto-configures first) |
-| `make clean` | Remove all build artifacts (`build/` dir) |
-
-### Run
-
-| Command | Description |
-|---------|-------------|
-| `make up` | Start PostgreSQL + Redis containers (infra only) |
-| `make down` | Stop and remove containers |
-| `make dc-logs [SVC=xxx]` | Tail docker compose logs |
-| `make dc-ps` | Show container status |
-| `make dev` | Build then run binary directly (foreground) |
-| `make ps` | Show goreman process status |
-
-### All-in-one
-
-| Command | Description |
-|---------|-------------|
-| `make local-all [LOCAL_INFRA=redis]` | **[local]** Start infra + build + goreman together (background) |
-| `make local-logs` | **[local]** Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
-| `make local-stop` | **[local]** Stop goreman + tear down infra |
-| `make local-restart` | **[local]** Restart goreman (infra stays up) |
-| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`, existing images) |
-| `make dev-build` / `staging-build` | Rebuild images then start, per env (prod excluded — images assumed to be CI/CD build artifacts) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
-| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
-
-### Test & Code Quality
-
-| Command | Description |
-|---------|-------------|
 | `make test` | Run CTest (GTest, parallel) |
-| `make fmt` | Apply clang-format to src/ + include/ (in-place) |
-| `make lint` | clang-tidy static analysis (requires compile_commands.json) |
-| `make sanitize` | AddressSanitizer + UBSan build & run (memory safety check) |
+| `make deploy` | Deploy to Kubernetes via Helm |
+| `make help` | List targets |
 
-### Deploy
+### local (docker infra + goreman host processes)
 
 | Command | Description |
 |---------|-------------|
-| `make build BUILD_TYPE=Release` | Production release build |
-| `make dev-build` | Build Docker image + start |
-| `make deploy` | Deploy to Kubernetes via Helm |
+| `make local-build [BUILD_TYPE=Release]` | CMake configure (preset, generates compile_commands.json) + compile (`cmake --build`, parallel) |
+| `make local-all [LOCAL_INFRA=redis]` | Start infra(docker) → `local-build` → goreman together (background, `Procfile.dev`) |
+| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | Stop goreman + tear down infra |
+| `make local-restart` | Restart goreman (infra stays up) |
+| `make local-ps` | goreman process status |
+
+### dev / staging / prod (Docker full stack, `.env.<env>` + `--profile app`)
+
+| Command | Description |
+|---------|-------------|
+| `make <env>-all` | Start infra+app containers (existing images) |
+| `make <env>-build` | Rebuild images then start (dev/staging only — `prod-build` not provided, use CI/CD artifacts) |
+| `make <env>-logs` | Tail container logs (`SVC=` for one service) |
+| `make <env>-stop` | Tear down app+infra |
+| `make <env>-restart` | Restart containers (`SVC=` for one service) |
+| `make <env>-ps` | Container status |
+
+### DB (`ENV=local|dev|staging|prod`, default local)
+
+| Command | Description |
+|---------|-------------|
+| `make db-migrate` | Apply migrations (`MIGRATE` variable — default is a placeholder that prints a notice; set the command in the Makefile) |
+| `make db-seed` | Load seed data (`SEED` variable — also a placeholder) |
+| `make db-reset` | Reset schema + migrate — deletes data! (local=delete SQLite file, others=recreate postgres `schema public`, refused for prod) |
+| `make db-fresh` | `db-reset` + `db-seed` (e.g. `make db-fresh ENV=dev`) |
+
+### Code Quality (cpp only)
+
+| Command | Description |
+|---------|-------------|
+| `make fmt` | Apply clang-format to src/ + include/ (in-place) |
+| `make lint` | clang-tidy static analysis (run `make local-build` first for compile_commands.json) |
+| `make sanitize` | AddressSanitizer + UBSan build & run (memory safety check) |
+| `make clean` | Remove all build artifacts (`build/` dir) |
 
 ## Environment Variables
 
@@ -141,10 +139,12 @@ Key variables:
 
 ```bash
 make preflight     # pre-flight check
-make dev           # configure → build → run (Debug, SQLite)
+make local-build   # configure → build (Debug, SQLite)
+make local-all     # start infra + goreman in the background
+make local-logs    # tail aggregated logs (manual alternative: run build/debug/{{PROJECT_NAME}} directly)
 
 # Release build:
-make dev BUILD_TYPE=Release
+make local-build BUILD_TYPE=Release
 ```
 
 ### B) Local Multi-process (goreman, Procfile.dev)
@@ -161,13 +161,12 @@ go install github.com/mattn/goreman@latest
 make local-all LOCAL_INFRA=redis   # SQLite → only redis needed (no postgres)
 
 # Individual steps:
-make up             # start infra
-make build          # compile
+make local-build     # compile
 make local-logs      # tail aggregated logs
 make local-stop      # stop everything (goreman + infra)
 ```
 
-> C++ has no hot reload. After code changes, run `make build` again.
+> C++ has no hot reload. After code changes, run `make local-build` again.
 > Use `entr` or `nodemon --exec make local-restart` for file-watch automation.
 
 ### C) Docker Full Stack (dev/staging/prod)
@@ -198,13 +197,13 @@ make dev-stop
 
 ```bash
 # Debug (default, -g, assertions enabled)
-make build
+make local-build
 
 # Release (-O3, NDEBUG, LTO)
-make build BUILD_TYPE=Release
+make local-build BUILD_TYPE=Release
 
 # RelWithDebInfo (release opts + debug symbols)
-make build BUILD_TYPE=RelWithDebInfo
+make local-build BUILD_TYPE=RelWithDebInfo
 
 # Memory safety check (AddressSanitizer + UBSan)
 make sanitize
@@ -216,7 +215,7 @@ make sanitize
 # Apply formatting
 make fmt
 
-# Static analysis (run after make configure for compile_commands.json)
+# Static analysis (run after make local-build for compile_commands.json)
 make lint
 
 # Runtime memory safety check
@@ -292,7 +291,7 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 | `VCPKG_ROOT not set` | vcpkg env var not configured | `export VCPKG_ROOT=/path/to/vcpkg` |
 | `vcpkg install` fails | Missing system libs | `apt install build-essential libssl-dev libpq-dev` |
 | `undefined reference to ...` | Missing link dependency | Check `target_link_libraries` in CMakeLists.txt |
-| Binary not found | `make build` not run | Run `make build` first |
+| Binary not found | `make local-build` not run | Run `make local-build` first |
 | AddressSanitizer crash | Memory bug detected | Read stack trace from `make sanitize` output |
 | Slow Docker build | vcpkg building from source | Use Docker BuildKit cache (`DOCKER_BUILDKIT=1`) |
 

@@ -39,8 +39,8 @@ bundle install
 # 의존성 설치
 flutter pub get
 
-# 기본 기기/에뮬레이터에서 실행
-make dev
+# 기본 기기/에뮬레이터에서 실행 (.env.local 주입, DEVICE='-d <id>' 로 기기 지정)
+make local-all
 
 # iOS 시뮬레이터
 make ios
@@ -53,11 +53,17 @@ make android
 
 | 명령 | 설명 |
 |------|------|
-| `make dev` | 기본 기기에서 실행 (`flutter run`) |
-| `make ios` | iOS 시뮬레이터에서 실행 (`flutter run -d ios`) |
-| `make android` | Android 에뮬레이터에서 실행 (`flutter run -d android`) |
+| `make help` | 타겟 목록 |
+| `make local-all` | [local] `.env.local` 주입 실행 (`flutter run --dart-define-from-file=.env.local`) |
+| `make dev-all` | [dev] `.env.dev` 주입 실행 |
+| `make staging-all` | [staging] `.env.staging` 주입 실행 |
+| `make local-stop` | [local] 시뮬레이터/에뮬레이터 종료 |
+| `make ios` | iOS 시뮬레이터에서 실행 (`flutter run -d ios --dart-define-from-file=.env.local`) |
+| `make android` | Android 에뮬레이터에서 실행 (`flutter run -d android --dart-define-from-file=.env.local`) |
 | `make test` | 단위/위젯 테스트 + 분석 (`flutter test && flutter analyze`) |
-| `make build` | iOS IPA + Android AAB 빌드 |
+| `make dev-build` | [dev] debug APK (`.env.dev`) |
+| `make staging-build` | [staging] Android AAB + iOS IPA (`.env.staging`) |
+| `make prod-build` | [prod] Android AAB + iOS IPA (`.env.prod`) |
 | `make deploy` | Fastlane Android `beta` lane (Play internal) |
 
 ### 플랫폼별 배포

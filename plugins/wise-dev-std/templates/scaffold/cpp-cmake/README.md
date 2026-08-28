@@ -50,11 +50,11 @@ vcpkg install
 # 3. 환경 변수 파일 복사
 cp .env.local .env
 
-# 4. 인프라 기동 (Postgres :5432 + Redis :6379) — local 은 SQLite 이므로 생략 가능
-make up
+# 4. 빌드(Debug) + infra(docker) + goreman 백그라운드 기동 — local 은 SQLite 이므로 LOCAL_INFRA=redis 가능
+make local-build && make local-all
 
-# 5. 빌드 + 실행 (Debug)
-make dev
+# 5. 통합 로그 추적 (수동 대안: build/debug/{{PROJECT_NAME}} 직접 실행)
+make local-logs
 # → http://localhost:8080
 ```
 
@@ -64,56 +64,54 @@ make dev
 make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 ```
 
-### 빌드
+### 공통
 
 | 명령 | 설명 |
 |------|------|
 | `make preflight` | 런타임·도구 버전 호환성 사전 점검 |
-| `make configure` | CMake 구성 (CMakePresets.json 사용, compile_commands.json 생성) |
-| `make build` | 컴파일 (`cmake --build`, 병렬, configure 자동 선행) |
-| `make clean` | 빌드 결과물 전체 제거 (`build/` 삭제) |
-
-### 실행
-
-| 명령 | 설명 |
-|------|------|
-| `make up` | PostgreSQL + Redis 컨테이너 기동 (infra only) |
-| `make down` | 컨테이너 정리 |
-| `make dc-logs [SVC=xxx]` | docker compose 로그 추적 |
-| `make dc-ps` | docker compose 컨테이너 상태 |
-| `make dev` | 빌드 후 바이너리 직접 실행 (포그라운드) |
-| `make ps` | goreman 프로세스 상태 |
-
-### 일괄 기동
-
-| 명령 | 설명 |
-|------|------|
-| `make local-all [LOCAL_INFRA=redis]` | **[local]** infra(docker) + 빌드 + goreman 일괄 기동 (백그라운드) |
-| `make local-logs` | **[local]** 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
-| `make local-stop` | **[local]** goreman 종료 + infra 정리 |
-| `make local-restart` | **[local]** goreman 재기동 (infra 유지) |
-| `make dev-all` / `staging-all` / `prod-all` | 환경별 infra+app 컨테이너 기동 (`.env.<env>`, 기존 이미지) |
-| `make dev-build` / `staging-build` | 환경별 이미지 재빌드 후 기동 (prod 는 CI/CD 산출물 전제로 미제공) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | 환경별 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | 환경별 app+infra 전체 정리 |
-| `make dev-restart` / `staging-restart` / `prod-restart` | 환경별 컨테이너 재기동 |
-
-### 테스트 & 코드 품질
-
-| 명령 | 설명 |
-|------|------|
 | `make test` | CTest 실행 (GTest, 병렬) |
-| `make fmt` | clang-format 적용 (src/ + include/ in-place) |
-| `make lint` | clang-tidy 정적 분석 (compile_commands.json 기반) |
-| `make sanitize` | AddressSanitizer + UBSan 빌드·실행 (메모리 안전성 점검) |
+| `make deploy` | Helm으로 Kubernetes 배포 |
+| `make help` | 타겟 목록 |
 
-### 배포
+### local (docker infra + goreman 호스트 프로세스)
 
 | 명령 | 설명 |
 |------|------|
-| `make build BUILD_TYPE=Release` | 릴리즈 빌드 |
-| `make dev-build` | Docker 이미지 빌드 + 기동 |
-| `make deploy` | Helm으로 Kubernetes 배포 |
+| `make local-build [BUILD_TYPE=Release]` | CMake 구성(preset, compile_commands.json 생성) + 컴파일 (`cmake --build`, 병렬) |
+| `make local-all [LOCAL_INFRA=redis]` | infra(docker) 기동 → `local-build` → goreman 일괄 기동 (백그라운드, `Procfile.dev`) |
+| `make local-logs` | 통합 로그 추적 (Ctrl-C 로 tail 종료, 프로세스는 유지) |
+| `make local-stop` | goreman 종료 + infra 정리 |
+| `make local-restart` | goreman 재기동 (infra 유지) |
+| `make local-ps` | goreman 프로세스 상태 |
+
+### dev / staging / prod (Docker 전체 스택, `.env.<env>` + `--profile app`)
+
+| 명령 | 설명 |
+|------|------|
+| `make <env>-all` | infra+app 컨테이너 기동 (기존 이미지) |
+| `make <env>-build` | 이미지 재빌드 후 기동 (dev/staging 만 — `prod-build` 미제공, CI/CD 산출물 사용) |
+| `make <env>-logs` | 컨테이너 로그 추적 (`SVC=`로 특정 서비스) |
+| `make <env>-stop` | app+infra 전체 정리 |
+| `make <env>-restart` | 컨테이너 재기동 (`SVC=`로 특정 서비스) |
+| `make <env>-ps` | 컨테이너 상태 |
+
+### DB (`ENV=local|dev|staging|prod`, 기본 local)
+
+| 명령 | 설명 |
+|------|------|
+| `make db-migrate` | 마이그레이션 적용 (`MIGRATE` 변수 — 기본은 안내 메시지 출력 placeholder, Makefile 에 명령 지정 필요) |
+| `make db-seed` | 시드 데이터 적재 (`SEED` 변수 — 동일하게 placeholder) |
+| `make db-reset` | 스키마 초기화 + 마이그레이션 — 데이터 삭제! (local=SQLite 파일 삭제, 그 외=postgres `schema public` 재생성, prod 거부) |
+| `make db-fresh` | `db-reset` + `db-seed` (예: `make db-fresh ENV=dev`) |
+
+### 코드 품질 (cpp 전용)
+
+| 명령 | 설명 |
+|------|------|
+| `make fmt` | clang-format 적용 (src/ + include/ in-place) |
+| `make lint` | clang-tidy 정적 분석 (`make local-build` 로 compile_commands.json 생성 후) |
+| `make sanitize` | AddressSanitizer + UBSan 빌드·실행 (메모리 안전성 점검) |
+| `make clean` | 빌드 결과물 전체 제거 (`build/` 삭제) |
 
 ## 환경 변수
 
@@ -141,10 +139,12 @@ make <target> [BUILD_TYPE=Debug|Release] [LOCAL_INFRA=redis]
 
 ```bash
 make preflight     # 사전 점검
-make dev           # configure → build → run (Debug, SQLite)
+make local-build   # configure → build (Debug, SQLite)
+make local-all     # infra + goreman 백그라운드 기동
+make local-logs    # 통합 로그 추적 (수동 대안: build/debug/{{PROJECT_NAME}} 직접 실행)
 
 # Release 빌드:
-make dev BUILD_TYPE=Release
+make local-build BUILD_TYPE=Release
 ```
 
 ### B) 로컬 멀티프로세스 (goreman, Procfile.dev)
@@ -160,13 +160,12 @@ go install github.com/mattn/goreman@latest
 make local-all LOCAL_INFRA=redis   # SQLite 사용 시 postgres 불필요 → redis 만 기동
 
 # 개별 실행:
-make up             # infra 기동
-make build          # 컴파일
+make local-build     # 컴파일
 make local-logs      # 통합 로그 추적
 make local-stop      # 전체 종료 (goreman + infra)
 ```
 
-> C++은 핫리로드 없음. 코드 변경 후 `make build` 재실행 → goreman 자동으로 바이너리 재시작 불가.
+> C++은 핫리로드 없음. 코드 변경 후 `make local-build` 재실행 → goreman 자동으로 바이너리 재시작 불가.
 > `entr`/`nodemon --exec make local-restart` 로 파일 감시 자동화 가능.
 
 ### C) Docker 전체 스택 (dev/staging/prod)
@@ -197,13 +196,13 @@ make dev-stop
 
 ```bash
 # Debug (기본, -g, 어서션 활성화)
-make build
+make local-build
 
 # Release (-O3, NDEBUG, LTO)
-make build BUILD_TYPE=Release
+make local-build BUILD_TYPE=Release
 
 # RelWithDebInfo (릴리즈 최적화 + 디버그 심벌)
-make build BUILD_TYPE=RelWithDebInfo
+make local-build BUILD_TYPE=RelWithDebInfo
 
 # 메모리 안전성 검사 (AddressSanitizer + UBSan)
 make sanitize
@@ -215,7 +214,7 @@ make sanitize
 # 포맷 일괄 적용
 make fmt
 
-# 정적 분석 (make configure 로 compile_commands.json 생성 후)
+# 정적 분석 (make local-build 로 compile_commands.json 생성 후)
 make lint
 
 # 메모리 안전성 런타임 검사
@@ -291,7 +290,7 @@ helm upgrade --install {{PROJECT_NAME}} ./deploy/helm \
 | `VCPKG_ROOT not set` | vcpkg 환경변수 미설정 | `export VCPKG_ROOT=/path/to/vcpkg` |
 | `vcpkg install` 실패 | 시스템 라이브러리 미설치 | `apt install build-essential libssl-dev libpq-dev` |
 | `undefined reference to ...` | 링크 의존성 누락 | `CMakeLists.txt` 의 `target_link_libraries` 확인 |
-| 바이너리 실행 안 됨 | `make build` 미실행 | `make build` 후 재시도 |
+| 바이너리 실행 안 됨 | `make local-build` 미실행 | `make local-build` 후 재시도 |
 | AddressSanitizer 크래시 | 메모리 버그 감지 | `make sanitize` 출력 스택 트레이스 확인 |
 | Docker 이미지 빌드 느림 | vcpkg 소스 컴파일 | Docker BuildKit 캐시 레이어 활용 (`DOCKER_BUILDKIT=1`) |
 

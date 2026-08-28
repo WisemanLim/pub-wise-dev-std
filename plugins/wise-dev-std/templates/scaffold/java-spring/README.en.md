@@ -31,11 +31,11 @@ Java / Spring Boot 3 REST API service.
 # 1. Copy env file
 cp .env.local .env
 
-# 2. Start infra (Postgres :5432 + Redis :6379)
-make up
+# 2. Host build, then start infra (Postgres :5432 + Redis :6379) + goreman in the background
+make local-build && make local-all
 
-# 3. Run dev server (H2 in-memory DB, no external deps)
-make dev
+# 3. Tail aggregated logs (manual alternative: ./gradlew bootRun --args='--spring.profiles.active=local')
+make local-logs
 # → http://localhost:8080
 # → H2 Console: http://localhost:8080/h2-console
 # → Actuator:   http://localhost:8080/actuator/health
@@ -45,21 +45,26 @@ make dev
 
 | Command | Description |
 |---------|-------------|
-| `make up` | Start PostgreSQL + Redis containers |
-| `make down` | Stop and remove all containers |
-| `make dev` | Run single dev server (`bootRun --spring.profiles.active=local`) |
-| `make local-all` | Start infra(docker) + **goreman** api(+worker) together (background) |
-| `make local-logs` | Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
-| `make local-stop` | Stop goreman + tear down infra |
-| `make local-restart` | Restart goreman (infra stays up) |
-| `make ps` | goreman process status (`goreman run status`) |
+| `make preflight` | Runtime/tool version compatibility check |
 | `make test` | Run all tests (`./gradlew test`) |
-| `make build` | Build Docker image (`--profile app`) |
 | `make deploy` | Deploy to Kubernetes via Helm |
-| `make dev-all` / `staging-all` / `prod-all` | Start infra+app containers per env (`.env.<env>`) |
-| `make dev-logs` / `staging-logs` / `prod-logs` | Tail container logs per env (`SVC=` for one service) |
-| `make dev-stop` / `staging-stop` / `prod-stop` | Tear down app+infra per env |
-| `make dev-restart` / `staging-restart` / `prod-restart` | Restart containers per env |
+| `make help` | List targets |
+| `make local-build` | [local] Host build (`./gradlew build -x test`) |
+| `make local-all` | [local] Start infra(docker) + **goreman** api(+worker) together (background, `Procfile.dev`) |
+| `make local-logs` | [local] Tail aggregated logs (Ctrl-C stops the tail, processes keep running) |
+| `make local-stop` | [local] Stop goreman + tear down infra |
+| `make local-restart` | [local] Restart goreman (infra stays up) |
+| `make local-ps` | [local] goreman process status (`goreman run status`) |
+| `make <env>-all` | [dev\|staging\|prod] Start full stack via `.env.<env>` + `--profile app` (existing images) |
+| `make <env>-build` | [dev\|staging] Rebuild images then start (`prod-build` not provided — use CI/CD artifacts) |
+| `make <env>-logs` | [dev\|staging\|prod] Tail container logs (`SVC=` for one service) |
+| `make <env>-stop` | [dev\|staging\|prod] Tear down app+infra |
+| `make <env>-restart` | [dev\|staging\|prod] Restart containers (`SVC=` for one service) |
+| `make <env>-ps` | [dev\|staging\|prod] Container status |
+| `make db-migrate [ENV=<env>]` | Apply migrations (`MIGRATE` variable, default ENV=local) |
+| `make db-seed [ENV=<env>]` | Load seed data (`SEED` variable) |
+| `make db-reset [ENV=<env>]` | Reset schema + migrate — deletes data! (local=delete SQLite file, others=recreate postgres `schema public`, refused for prod) |
+| `make db-fresh [ENV=<env>]` | `db-reset` + `db-seed` (e.g. `make db-fresh ENV=dev`) |
 
 ### Local multi-process (goreman)
 

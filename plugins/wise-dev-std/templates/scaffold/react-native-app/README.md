@@ -36,7 +36,7 @@ eas login
 pnpm install
 
 # 2. Expo Dev Client 실행 (Metro 번들러)
-make dev
+make local-all
 # → QR 코드로 Expo Go 앱(iOS/Android)에서 스캔
 ```
 
@@ -44,11 +44,15 @@ make dev
 
 | 명령 | 설명 |
 |------|------|
-| `make dev` | Expo 개발 서버 실행 (`pnpm expo start`) |
+| `make help` | 타겟 목록 |
+| `make local-all` | [local] Expo 개발 서버 실행 (`pnpm expo start`, `.env.local`) |
+| `make local-stop` | [local] 시뮬레이터/에뮬레이터 종료 |
 | `make ios` | iOS 시뮬레이터에서 실행 (`pnpm expo run:ios`) |
 | `make android` | Android 에뮬레이터에서 실행 (`pnpm expo run:android`) |
 | `make test` | Jest 테스트 + TypeScript 검사 |
-| `make build` | EAS 전 플랫폼 빌드 (`eas build -p all --profile production`) |
+| `make dev-build` | [dev] EAS 전 플랫폼 빌드 (`--profile development`) |
+| `make staging-build` | [staging] EAS 전 플랫폼 빌드 (`--profile preview`) |
+| `make prod-build` | [prod] EAS 전 플랫폼 빌드 (`--profile production`) |
 | `make deploy` | EAS 전 플랫폼 스토어 제출 (`eas submit -p all`) |
 
 ### EAS 직접 사용
@@ -84,7 +88,7 @@ eas submit -p android
 ### EAS 빌드
 
 ```bash
-make build
+make prod-build
 # 또는 플랫폼별:
 eas build -p ios --profile production
 eas build -p android --profile production

@@ -34,115 +34,45 @@ description: >
    - `csharp-dotnet`: `appsettings.Development.json` + `dotnet user-secrets` 사용 — `.env.*` 생성 금지.
 5. 도메인 오버레이가 있으면 `COMPLIANCE.md` 를 생성하고(§2 도메인 항), `stack_overrides` 의
    추가 서비스(Kafka/PostGIS/TimescaleDB/FHIR 등)를 compose 에 주석 스텁으로 포함한다.
-6. 생성 후 트리(`find` 또는 직접 나열)와 다음 명령(`make dev`)을 안내한다.
+6. 생성 후 트리(`find` 또는 직접 나열)와 다음 명령(`make preflight` → `make local-build` → `make local-all`)을 안내한다.
 7. **기존 파일 덮어쓰기 금지** — 존재하면 `.generated` 접미사로 쓰고 차이를 보고.
 
 ## 2. 파일 생성 규칙
 
-### Makefile (공통 진입점, 원본 §5-2)
-프로파일 `makefile_targets` 를 타겟으로. **아래 타겟 전체를 항상 포함**:
+### Makefile (공통 진입점, 원본 §5-2) — 환경 통일 타겟
+**정적 템플릿 `templates/scaffold/<id>/Makefile` 을 복사하는 것이 원칙**(단일 기준). 생성 시에도 아래 형태를 그대로 따른다.
+모든 환경(local/dev/staging/prod)에 **동일한 접미사 네이밍**만 제공하고, 환경 무관 옛 타겟(`up/down/dev/build/ps/dc-*`,
+`*-down` 별칭)은 **두지 않는다**.
 
 ```makefile
-.PHONY: dev test build deploy up down dc-logs dc-ps ps preflight \
-        local-all local-logs local-stop local-restart \
-        dev-all dev-build dev-logs dev-stop dev-restart \
-        staging-all staging-build staging-logs staging-stop staging-restart \
-        prod-all prod-logs prod-stop prod-restart \
-        local-down dev-down staging-down prod-down
-ENV ?= local
-LOCAL_INFRA ?=   # local 모드 compose 서비스 목록. 비워두면 전체 infra. 예: LOCAL_INFRA=redis
-PROC_MGR ?= <default-mgr>   # python 만: honcho(기본) | pm2(대안, overlay)
+ENV ?= local          # db-* 대상 환경
+ENVS := dev staging prod
+DCE  = docker compose $(if $(wildcard .env.$*),--env-file .env.$*,) --profile app
+MIGRATE ?= <프로파일 마이그레이션 명령>     SEED ?= <시드 명령>     LOCAL_INFRA ?=
 
-## 사전 호환성 점검 (env-init 전 실행 권장)
-preflight: ## 런타임·도구 버전 호환성 점검
-	# 언어별 버전 체크 + docker compose v2 확인 (정적 템플릿 참조)
-
-## infra (DB/캐시, app 제외)
-up:    ; docker compose up -d                    # 인프라만. app은 profiles:[app]라 안 뜸
-down:  ; docker compose --profile app down --remove-orphans
-
-## docker-compose 공통 유틸
-dc-logs: ; docker compose logs -f $(SVC)         # SVC= 으로 특정 서비스 지정
-dc-ps:   ; docker compose ps
-
-## local 직접 실행 (포그라운드, 단일)
-dev:   ; <profile.run_methods.direct.dev>
-test:  ; <makefile_targets.test>
-build: ; docker compose --profile app build
-deploy:; <makefile_targets.deploy>
-
-ps: ; <pm-manager> status   # 프로세스 매니저 상태
-
-## local-all/logs/stop/restart: infra + 프로세스 매니저(web/worker) 한 번에 관리 (백그라운드 데몬화)
-local-all:      ## [local] docker infra + 프로세스 매니저 일괄 기동 (백그라운드)
-	docker compose up -d $(LOCAL_INFRA)
-	<pm-manager 백그라운드 기동: nohup+pidfile 또는 네이티브 데몬(pm2/overmind -D)>
-local-logs:     ## [local] 통합 로그 추적 (tail -f 또는 <pm-manager> logs)
-	<로그 파일 tail 또는 pm-manager logs>
-local-stop:     ## [local] 프로세스 매니저 종료 + infra 정리
-	<pm-manager> stop
-	docker compose down --remove-orphans
-local-restart:  ## [local] 프로세스 매니저 재기동 (infra 유지)
-	<pm-manager> restart
-
-## dev/staging/prod: Docker 전체 스택 (환경별 .env.<env> 명시)
-dev-all:          ; docker compose --env-file .env.dev --profile app up -d           # 기존 이미지 사용
-dev-build:        ; docker compose --env-file .env.dev --profile app up -d --build   # 이미지 재빌드 후 기동
-dev-logs:         ; docker compose --env-file .env.dev --profile app logs -f $(SVC)
-dev-stop:         ; docker compose --env-file .env.dev --profile app down --remove-orphans
-dev-restart:      ; docker compose --env-file .env.dev --profile app restart $(SVC)
-
-staging-all:      ; docker compose --env-file .env.staging --profile app up -d
-staging-build:    ; docker compose --env-file .env.staging --profile app up -d --build
-staging-logs:     ; docker compose --env-file .env.staging --profile app logs -f $(SVC)
-staging-stop:     ; docker compose --env-file .env.staging --profile app down --remove-orphans
-staging-restart:  ; docker compose --env-file .env.staging --profile app restart $(SVC)
-
-prod-all:         ; docker compose --env-file .env.prod --profile app up -d
-prod-logs:        ; docker compose --env-file .env.prod --profile app logs -f $(SVC)
-prod-stop:        ; docker compose --env-file .env.prod --profile app down --remove-orphans
-prod-restart:     ; docker compose --env-file .env.prod --profile app restart $(SVC)
-
-## 하위호환 별칭 (recipe 없이 선행 타겟만 실행)
-local-down:      local-stop
-dev-down:        dev-stop
-staging-down:    staging-stop
-prod-down:       prod-stop
+preflight test deploy help                       # 환경 무관 공통
+local-build local-all local-logs local-stop local-restart local-ps   # host 프로세스 매니저 + docker infra
+$(ENVS:%=%-all):     %-all:     ; $(DCE) up -d            # dev/staging/prod = 컨테이너 전체 스택 (패턴 규칙으로 1회 정의)
+$(filter-out prod-build,$(ENVS:%=%-build)): %-build: ; $(DCE) up -d --build   # prod-build 미제공(CI/CD 산출물)
+$(ENVS:%=%-logs) %-stop %-restart %-ps ...       # logs -f $(SVC) / down --remove-orphans / restart $(SVC) / ps
+db-migrate db-seed db-reset db-fresh             # ENV=<env>; reset: local=SQLite 삭제, 그 외=postgres schema 재생성, prod 거부
 ```
-
-타겟별 용도:
 
 | 타겟 | 용도 | 환경 |
 |------|------|------|
-| `preflight` | 런타임·도구 버전 사전 점검 | 모든 환경 (env-init 전) |
-| `up` / `down` | infra(DB/캐시)만 docker 기동/정리 | local |
-| `dc-logs` / `dc-ps` | docker compose 로그·컨테이너 상태 | 모든 환경 |
-| `dev` | 단일 프로세스 포그라운드 실행 | local |
-| `ps` | 프로세스 매니저 상태 | local |
-| `local-all` / `local-logs` / `local-stop` / `local-restart` | infra + 프로세스 매니저(web/worker) 일괄 기동·로그·종료·재기동 (백그라운드) | local |
-| `<env>-all` | app+infra 컨테이너 기동 (빌드 없음) | dev/staging/prod |
-| `<env>-build` | 이미지 빌드 후 app+infra 기동 (**prod 는 미제공** — 이미지는 CI/CD 산출물 전제) | dev/staging |
-| `<env>-logs` | 컨테이너 로그 추적 (SVC=로 특정 서비스) | dev/staging/prod |
-| `<env>-stop` | app+infra 전체 정리 | dev/staging/prod |
-| `<env>-restart` | 컨테이너 재기동 (SVC=로 특정 서비스, 비우면 전체) | dev/staging/prod |
-| `local-down` / `<env>-down` | `local-stop`/`<env>-stop` 의 하위호환 별칭(레시피 없이 선행 타겟 실행) | 모든 환경 |
+| `preflight` / `test` / `deploy` / `help` | 도구 점검 / 테스트 / Helm 배포 / 타겟 목록 | 공통 |
+| `<env>-all` | 전체 기동 — local: docker infra + 프로세스 매니저(web/worker, 백그라운드) · 그 외: `--env-file .env.<env> --profile app` 컨테이너 전체 | 모든 환경 |
+| `<env>-build` | local: 의존성 설치/호스트 빌드 · dev/staging: 이미지 재빌드 후 기동 · **prod 미제공** | local/dev/staging |
+| `<env>-logs` / `<env>-stop` / `<env>-restart` / `<env>-ps` | 로그 추적(`SVC=`) / 전체 정리 / 재기동 / 상태 | 모든 환경 |
+| `db-migrate` / `db-seed` / `db-reset` / `db-fresh` | 마이그레이션 / 시드 / 스키마 초기화+마이그레이션 / reset+seed — `ENV=<env>`(기본 local), prod reset 거부 | local/dev/staging |
 
-- **중요**: `up` 은 datastore 만 띄운다. app 서비스(build 컨텍스트 보유)는 compose 에서
-  `profiles: [app]` 로 묶어, 코드/Dockerfile 미완 상태에서도 `make up` 이 빌드를 시도해 실패하지 않게 한다.
-- `local-all` 의 `LOCAL_INFRA`: SQLite 사용 시 postgres 불필요 → `LOCAL_INFRA=redis make local-all` 로 redis 만 기동.
-- `<env>-all` vs `<env>-build`: 코드 변경 없이 재시작은 `-all`, Dockerfile/소스 변경 후 재빌드는 `-build`.
-  **prod 는 `-build` 를 두지 않는다** — prod 이미지는 CI/CD 파이프라인 산출물을 pull 하는 것을 전제로 하고,
-  로컬에서 prod 이미지를 재빌드하는 경로를 만들지 않는다(사고 방지).
-- **하위호환 별칭**: 기존 `local-down`/`dev-down`/`staging-down`/`prod-down` 을 쓰던 사용자를 위해
-  각각 `local-stop`/`<env>-stop` 을 그대로 실행하는 레시피 없는 별칭 타겟을 둔다(`<alias>: <target>` 형태).
-- **local/dev/staging/prod 전 환경에 동일한 `-all`/`-logs`/`-stop`/`-restart` 네이밍**을 적용한다 — 환경별로
-  다른 커맨드를 외우지 않아도 되게. local 은 프로세스 매니저(호스트) + infra(docker), dev/staging/prod 는
-  compose 전체 스택(`--env-file .env.<env> --profile app`)을 대상으로 한다.
-- **local 멀티프로세스 타겟**(`local-all`/`local-logs`/`local-stop`/`local-restart`)을 항상 포함한다 — 아래 항 참조.
-  `dev` 는 단일·포그라운드 그대로 두고, `local-all` 이 프로세스 매니저로 web+worker 등을 백그라운드로 함께 관리.
-- **포그라운드 전용 매니저(honcho/goreman 기본 모드)도 nohup+pidfile 로 백그라운드 데몬화**해
-  `local-logs`/`local-stop`/`local-restart` 가 PM2/overmind 와 동일하게 동작하도록 한다(정적 템플릿 참조:
-  `templates/scaffold/*/Makefile` 의 `.make/<mgr>.pid` + `.make/<mgr>.log` 패턴).
+- app 서비스는 compose `profiles: [app]` — `<env>-all` 이 `--profile app` 으로 포함. local 은 infra 만 docker.
+- `LOCAL_INFRA`: SQLite 사용 시 `LOCAL_INFRA=redis make local-all` 로 postgres 제외.
+- **포그라운드 매니저(honcho/goreman/overmind)는 nohup+pidfile(`.make/<mgr>.pid|.log`)로 데몬화**해 `local-logs/stop/restart/ps` 가
+  PM2 와 동일하게 동작. python 은 `PROC_MGR=honcho|pm2` 분기.
+- `MIGRATE`/`SEED` 기본값(프로파일별): python `uv run alembic upgrade head` · node `pnpm -C apps/api exec prisma migrate deploy` ·
+  go `go run ./cmd/migrate up` · rust `sqlx migrate run` · java `./gradlew flywayMigrate` · c# `dotnet ef database update` · cpp placeholder.
+- `.env.<env>` 가 없으면(java/c# 등) `--env-file` 을 생략(`$(wildcard)`), `db-*` 는 `.env.<ENV>` 존재 시에만 셸 환경으로 로드.
 
 ### local 멀티프로세스 매니저 (host/베어메탈 편의 / direct-mode process manager)
 컨테이너(compose/K8s) 대신 **호스트 직접 실행** 시 web·worker 등 여러 프로세스를 한 번에 관리하는
@@ -158,7 +88,7 @@ prod-down:       prod-stop
 생성 규칙:
 - 설정 파일을 템플릿에 두고 복사(§1-3). `{{PROJECT_NAME}}` 치환. **Procfile.dev / ecosystem.config.cjs 는
   web(메인) 1줄 + worker 주석 예시**를 포함해 멀티프로세스 확장 지점을 보인다.
-- Makefile `local-all/local-logs/local-stop/local-restart` 타겟을 매니저 실커맨드로 채운다.
+- Makefile `local-all/local-logs/local-stop/local-restart/local-ps` 타겟을 매니저 실커맨드로 채운다.
   **네이티브 데몬(PM2)**은 자체 명령을 그대로 쓰고, **포그라운드 매니저(honcho/goreman/overmind)**는
   `nohup <mgr> start > .make/<mgr>.log 2>&1 & echo $! > .make/<mgr>.pid` 로 백그라운드 데몬화해
   `local-logs`(로그 tail)·`local-stop`(pid kill)·`local-restart`(kill 후 재기동)가 PM2 와 동일하게 동작하도록 한다 —
@@ -174,11 +104,11 @@ prod-down:       prod-stop
 - **인프라 서비스**(profile 없음 → `up` 시 기동): `database.default`(postgres) + `cache`(redis).
   프로파일에 vector/graph/object 있으면 추가(pgvector, neo4j, minio).
 - **app 서비스**(각 `scaffold.tree` 앱 디렉터리별 build context): 반드시 **`profiles: [app]`** 를 붙인다.
-  → 기본 `docker compose up -d` 에서 제외되어 Dockerfile/코드 미완성이어도 `make up` 이 실패하지 않음.
+  → local infra 기동(`make local-all`)에서 제외되어 Dockerfile/코드 미완성이어도 실패하지 않음.
   app 서비스마다 **반드시 Dockerfile 을 함께 생성**한다(아래 항). build context 만 두고 Dockerfile 누락 금지.
 - 포트/볼륨/healthcheck 포함. 환경변수는 `.env.${ENV}` 참조.
 - **pnpm 워크스페이스 앱(Next/Nest 등)은 dev 시 호스트 실행 권장** — 별도 profile(`node-app`)로 분리하고
-  `make dev` 기본 기동에서 제외. 이유: per-dir Docker 빌드는 루트 `pnpm-lock.yaml`/`pnpm-workspace.yaml`
+  `make local-all` 기본 기동에서 제외. 이유: per-dir Docker 빌드는 루트 `pnpm-lock.yaml`/`pnpm-workspace.yaml`
   컨텍스트가 없어 런타임 재설치→ignored-builds 게이트로 크래시. 호스트 `pnpm --filter <app> dev`(워크스페이스 인식)로 구동.
   자체완결 서비스(pyproject 단위 Python, 단일바이너리 Go/Rust)만 compose `app` 프로파일로 컨테이너화.
   워크스페이스 앱의 prod 이미지는 **루트 컨텍스트 멀티스테이지**(lockfile+workspace COPY 후 `pnpm --filter ... deploy`)로 별도 작성.
@@ -283,8 +213,8 @@ test/
 > (pytest `testpaths=["test"]`, CMake `add_subdirectory(test/unit)`, .sln 은 `test/` 경로).
 > 예외: 프레임워크가 디렉터리명을 강제하는 경우만 유지 — RN `__tests__/`, iOS `AppTests/`,
 > Android `app/src/test`, Go/Rust in-package `_test.go`/`#[cfg(test)]`.
-- `test/dev-env/scenario.md` 는 프로파일 기준 케이스로 채운다: 의존성 설치, `make up`, DB 연결,
-  헬스 체크, `make test` 동작. Fill with profile-based cases (deps, compose up, DB, health, make test).
+- `test/dev-env/scenario.md` 는 프로파일 기준 케이스로 채운다: `make preflight`, `make local-build`, `make local-all`, DB 연결(`make db-migrate`),
+  헬스 체크, `make test` 동작. Fill with profile-based cases (preflight, local-build, local-all, db-migrate, health, make test).
 - `test/impl/` 는 비워 둔다(구현 시 `/wise-dev-std:implement` 가 `<Nth>/` 생성).
   Leave `test/impl/` empty; `implement` creates `<Nth>/` per iteration.
 - `.gitignore` 에 `test/**/logs/` 를 추가하도록 안내(원본 로그 비커밋) / suggest ignoring raw logs.
@@ -315,18 +245,18 @@ RAG 시험은 Ragas groundedness/recall 케이스를 `test/` 에 포함 / includ
 
 ## 2.5 모바일 (kind: mobile) — compose/Dockerfile/DB 대신 이 규칙
 
-프로파일 `kind: mobile` 이면 §2 의 **docker-compose / Dockerfile / 서버 DB(postgres) / `up`·`down` 타겟은 생성하지 않는다**.
+프로파일 `kind: mobile` 이면 §2 의 **docker-compose / Dockerfile / 서버 DB(postgres) / `db-*`·컨테이너 타겟은 생성하지 않는다**.
 대신 앱 빌드·실행·배포·플레이버 구조를 만든다.
 
-### Makefile (모바일 타겟)
-`makefile_targets` 를 그대로 타겟으로. compose 대신:
+### Makefile (모바일 타겟) — 서버와 동일 네이밍
+정적 템플릿 복사가 원칙. compose 대신:
 ```makefile
-.PHONY: dev test build deploy
-ENV ?= local
-dev:    ; <run_methods.simulator>      # 시뮬레이터/에뮬레이터 실행
-test:   ; <makefile_targets.test>      # flutter test / xcodebuild test / gradlew test / jest
-build:  ; <makefile_targets.build>     # ipa / aab / eas build
-deploy: ; <makefile_targets.deploy>    # fastlane → TestFlight / Play
+setup:          # ios/android: 툴체인·SDK 경로 1회 준비
+local-all:      # 시뮬레이터/에뮬레이터 실행 (flutter: local|dev|staging-all = .env.<env> dart-define)
+local-stop:     # 시뮬레이터/에뮬레이터 종료
+test:           # flutter test / xcodebuild test / gradlew test / jest
+dev-build staging-build prod-build:   # 환경별 빌드 (xcconfig / flavor / dart-define / eas profile)
+deploy:         # fastlane → TestFlight / Play, RN = eas submit
 ```
 플랫폼별 보조 타겟 추가 가능: `ios:`(`run_methods.ios`), `android:`(`run_methods.android`).
 
@@ -362,7 +292,7 @@ TestFlight/Play 배포 lane 스켈레톤을 생성(실행 아님). 예:
 
 ### test/ 골격
 §2 와 동일하게 `test/README.md` + `test/dev-env/{scenario.md,logs/.gitkeep}` 생성. 단 **dev-env 시나리오는 모바일 기준**:
-SDK/툴체인 확인(flutter doctor / xcodebuild -version / sdkmanager / expo --version) → 시뮬레이터·에뮬레이터 부팅 → 디버그 빌드 성공 → `make test` 동작. (DB 연결·compose up 케이스는 제외.)
+SDK/툴체인 확인(flutter doctor / xcodebuild -version / sdkmanager / expo --version) → 시뮬레이터·에뮬레이터 부팅 → `make local-all` 디버그 실행 성공 → `make test` 동작. (DB 연결·컨테이너 케이스는 제외.)
 프로파일 `test/`(Flutter `test/`, RN `__tests__/`, iOS `AppTests/`, Android `app/src/test`)와 시험표준 `test/dev-env`·`test/impl` 은 공존한다.
 
 ## 2.7 `.gitignore` 조립 (멱등) — 단일 규칙 / canonical rule
@@ -387,6 +317,6 @@ SDK/툴체인 확인(flutter doctor / xcodebuild -version / sdkmanager / expo --
 (Cursor·Windsurf·Copilot·Gemini·Cline·Roo·Antigravity — standardize 커맨드 참조).
 
 ## 4. 안전 규칙
-- 네트워크/설치 명령 실행 금지(파일 생성만). 설치는 사용자가 `make dev`/`uv sync`/`pnpm i` 로.
+- 네트워크/설치 명령 실행 금지(파일 생성만). 설치는 사용자가 `make local-build`(uv sync / pnpm install 등) 로.
 - 절대 실제 자격증명·토큰 생성 금지.
 - 기존 파일은 보존(2.6 항). 큰 변경 전 트리 미리보기 제시.

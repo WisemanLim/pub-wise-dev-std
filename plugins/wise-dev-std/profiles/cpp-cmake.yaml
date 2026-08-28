@@ -48,10 +48,10 @@ layers:
 
 run_methods:
   direct:
-    dev: "./build/debug/{{PROJECT_NAME}} (make build 후 — 컴파일 선행 필수)"
+    dev: "./build/debug/{{PROJECT_NAME}} (make local-build 후 — 컴파일 선행 필수)"
     start: "./build/release/{{PROJECT_NAME}}"
     local_pm: >
-      goreman (Procfile.dev) — make local-all(build 포함)/local-logs/local-stop/local-restart/ps.
+      goreman (Procfile.dev) — make local-all(local-build 포함)/local-logs/local-stop/local-restart/local-ps.
       cargo-watch 같은 핫리로드는 없음(재컴파일 후 재시작). 대안: entr, nodemon --exec.
   container:
     dev: "docker compose --profile app up"
@@ -93,13 +93,13 @@ testing:
   impl: "test/impl/<Nth>/"
   cycle: "시나리오→빌드·진행→오류시 수정·재시험→결과작성 / scenario→build·run→fix&retest→result"
 
-makefile_targets:
-  configure: "cmake --preset debug (CMakePresets.json, compile_commands.json 생성)"
-  build: "cmake --build build/debug --parallel (configure 자동 선행)"
+makefile_targets:                 # 공통 진입점 — 모든 환경 동일 네이밍 (템플릿 Makefile 이 단일 기준)
+  env_family: "<env>-all | -build(prod 제외) | -logs | -stop | -restart | -ps  (env = local|dev|staging|prod)"
+  db: "db-migrate | db-seed | db-reset | db-fresh  [ENV=<env>]"
+  common: "preflight | test | deploy | help"
+  # configure: "cmake --preset debug (CMakePresets.json, compile_commands.json 생성)"
+  # build: "cmake --build build/debug --parallel (configure 자동 선행)"
   test: "ctest --test-dir build/debug --output-on-failure --parallel"
-  sanitize: "AddressSanitizer + UBSan 빌드·실행 (메모리/UB 안전성 점검)"
-  fmt: "clang-format -i (src/ + include/ 전체)"
-  lint: "clang-tidy 정적 분석 (compile_commands.json 기반)"
   deploy: "helm upgrade --install / argocd sync"
 
 references:

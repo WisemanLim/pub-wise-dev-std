@@ -37,7 +37,7 @@ bundle install
 open {{PROJECT_NAME}}.xcodeproj
 
 # 2. Build and run on simulator
-make dev
+make local-all
 ```
 
 ## Make Targets
@@ -48,15 +48,20 @@ make <target> [SCHEME=<scheme>] [DEST=<destination>]
 
 | Target | Description |
 |--------|-------------|
-| `make dev` | Build for simulator (default: iPhone 15) |
+| `make help` | List targets |
+| `make setup` | Run once — check Xcode CLT, list simulators, resolve SPM |
+| `make local-all` | [local] Build & run Debug on simulator (default: iPhone 16, `Config/Debug.xcconfig`) |
+| `make local-stop` | [local] Shut down simulators (`xcrun simctl shutdown all`) |
 | `make test` | Run unit/UI tests on simulator |
-| `make build` | Fastlane `build` lane — produce archive (.ipa) |
+| `make dev-build` | [dev] Debug configuration device build (`Config/Debug.xcconfig`) |
+| `make staging-build` | [staging] Staging configuration device build (`Config/Staging.xcconfig`) |
+| `make prod-build` | [prod] Fastlane `build` lane — Release archive (.ipa) (`Config/Release.xcconfig`) |
 | `make deploy` | Fastlane `beta` lane — upload to TestFlight |
 
 ### Change simulator
 
 ```bash
-make dev DEST='platform=iOS Simulator,name=iPhone 16 Pro'
+make local-all DEST='platform=iOS Simulator,name=iPhone 16 Pro'
 make test SCHEME=AppTests DEST='platform=iOS Simulator,name=iPad Pro 13-inch'
 ```
 
@@ -74,7 +79,7 @@ xcodebuild -scheme App \
 ### Archive build (local)
 
 ```bash
-make build
+make prod-build
 # or:
 cd fastlane && bundle exec fastlane ios build
 ```

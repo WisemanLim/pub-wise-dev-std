@@ -34,11 +34,12 @@ allowed-tools: Read, Glob, Write, Edit, Bash
 6. **`.env.*` 생성** — 스킬 **§1-4 + §2 `.env` 항** 규칙
    (native-mobile/java-spring/csharp-dotnet 은 생성 금지 — 각 플랫폼 방식 사용).
 7. 도메인 지정 시 `COMPLIANCE.md` 생성 + `stack_overrides` 추가 서비스를 compose 주석 스텁으로(서버 한정).
-8. 생성 후 `find <target> -maxdepth 2` 로 트리 출력, `make dev` 사용법 안내(모바일=시뮬레이터/에뮬레이터).
+8. 생성 후 `find <target> -maxdepth 2` 로 트리 출력, 표준 타겟 안내: `make preflight` → `make local-build` → `make local-all`
+   (`make help` 로 전체 목록; 모바일=`make setup` → `make local-all`).
 
 ## 트러블슈팅
 
-모바일 스캐폴딩 직후 `make dev` 실패 시: `make setup` 먼저 → 스킬 **`references/troubleshoot-mobile.md`**
+모바일 스캐폴딩 직후 `make local-all` 실패 시: `make setup` 먼저 → 스킬 **`references/troubleshoot-mobile.md`**
 (Android Gradle/JDK 호환표·kapt→KSP, iOS xcodebuild/SPM/서명) 참조.
 
 안전: 설치/네트워크 명령 실행 금지(파일 생성만). 자격증명·서명키 생성 금지.

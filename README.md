@@ -36,8 +36,8 @@ PRD.md와 몇 가지 선택만으로 **현재 트렌드에 맞는 개발 스택(
 | Command | `/wise-dev-std:scaffold`    | 확정 프로파일 → 디렉터리/Makefile/compose/매니페스트/CI/.env 생성          |
 | Command | `/wise-dev-std:env-init`    | `local/dev/staging/prod` 환경파일 + compose 오버라이드 생성                |
 | Command | `/wise-dev-std:standardize` | 표준을 `AGENTS.md` + `.cursor/rules` 로 내보내기 (Cursor/Antigravity 준용) |
-| Command | `/wise-dev-std:implement`   | recommend~standardize 완료 후 PRD 기반 구현 + 시험 사이클(`test/impl/<Nth>`) + 언어·플랫폼별 `.gitignore` 생성 |
-| Command | `/wise-dev-std:review`      | 구현 완료 코드 **심층 분석 + 라인 단위 코드 리뷰 동시 실행** → `.review/` (코드 리뷰 기본 Level 2, 확인/자동추천) |
+| Command | `/wise-dev-std:implement`   | PRD **전체 자동 구현** — 확인 1회 후 Epic 단위 구현→시험→수정→재시험을 모두 PASS 까지 반복(`test/impl/<Nth>`), README(한/영) 현행화 |
+| Command | `/wise-dev-std:review` 등   | **선택 명령**(필수 아님): review · reverse-prd · req-update · standardize · test · ui-design — §4-5 간단 가이드 |
 | Skill   | `prd-advisor`                    | PRD 작성 도우미 지식 베이스(5질문 설문 + One-Page/풀스펙 템플릿 + KSIC KPI·NFR 제안) |
 | Skill   | `stack-advisor`                  | 스택 의사결정 지식 베이스(결정 매트릭스 + KSIC 업종 매핑)                  |
 | Skill   | `project-scaffolder`             | 구조 생성 규칙 (`test/` 시험 골격 + 업종 `COMPLIANCE.md` 포함)             |
@@ -158,28 +158,35 @@ git pull
 # 4) 환경 파일 생성 (local/dev/staging/prod)
 /wise-dev-std:env-init python-fastapi
 
-# 5) 표준을 Cursor/Antigravity 로 내보내기
-/wise-dev-std:standardize python-fastapi
+# 5) PRD 전체 자동 구현 — 확인 1회 후 모든 Epic 을 구현→시험→수정→재시험 (PASS 까지)
+/wise-dev-std:implement python-fastapi
+#   특정 Epic 만 / 중단 후 재개 / Epic 마다 확인:  --epic 3  |  --from 4  |  --step
 
-# 6) PRD 기반 구현 + 시험 (구현마다 test/impl/<Nth> 생성)
-/wise-dev-std:implement python-fastapi "로그인 API"
+# (선택) 코드 리뷰·IDE 표준 내보내기 등은 §4-5 참조
+```
 
-# 7) 구현 완료 코드 심층 분석 + 라인 단위 코드 리뷰 (동시) → .review/
-/wise-dev-std:review                       # 코드 리뷰 기본 Level 2 (확인/자동추천)
-/wise-dev-std:review --level 3 --pdf true  # 레벨 지정 + PDF
-/wise-dev-std:review --only code ./src     # 코드 리뷰만, 특정 경로
+생성된 프로젝트의 실행은 **환경 무관 동일 네이밍**의 Makefile 로 통일됩니다:
+
+```
+make preflight                       # 도구 점검
+make local-build && make local-all   # local: 의존성/빌드 + infra(docker) + 프로세스 매니저 기동
+make local-logs | local-stop | local-restart | local-ps
+make dev-all | staging-all | prod-all          # 컨테이너 전체 스택 (.env.<env>)   (+ dev-build / staging-build)
+make dev-logs | dev-stop | dev-restart | dev-ps  # staging-*, prod-* 동일
+make db-migrate | db-seed | db-reset | db-fresh [ENV=dev]   # prod reset 거부
+make test | deploy | help
 ```
 
 ---
 
-### 4-2. 단계별 가이드 (prd → review)
+### 4-2. 단계별 가이드 (prd → implement)
 
-7개 명령은 **하나의 파이프라인**입니다. 각 단계는 앞 단계의 산출물을 입력으로 받아 다음 단계로 넘깁니다.
-순서: **prd → recommend → scaffold → env-init → standardize → implement → review.**
+5개 명령이 **하나의 파이프라인**입니다. 각 단계는 앞 단계의 산출물을 입력으로 받아 다음 단계로 넘깁니다.
+순서: **prd → recommend → scaffold → env-init → implement.** (standardize·review 등은 선택 — §4-5)
 
 ```
-PRD.md  →  스택 추천  →  골격 생성  →  환경 파일  →  IDE 표준  →  구현+시험  →  리뷰
- prd      recommend     scaffold      env-init    standardize    implement     review
+PRD.md  →  스택 추천  →  골격 생성  →  환경 파일  →  구현+시험(자동 반복)
+ prd      recommend     scaffold      env-init         implement
 ```
 
 #### 1단계 — `prd` · 요구사항 정의
@@ -232,7 +239,7 @@ PRD.md  →  스택 추천  →  골격 생성  →  환경 파일  →  IDE 표
 - **다음**: `standardize`.
 - 💡 모바일 `api_base` 호스트: iOS Simulator=`localhost`, Android Emulator=`10.0.2.2`.
 
-#### 5단계 — `standardize` · IDE 중립 표준 내보내기
+#### (선택) `standardize` · IDE 중립 표준 내보내기 — §4-5 참조
 
 - **목적**: Claude 플러그인 표준을 **Cursor·Antigravity 도 읽는 포맷**으로 내보낸다.
 - **명령**: `/wise-dev-std:standardize [profile-id] [--domain <id>]`
@@ -243,37 +250,32 @@ PRD.md  →  스택 추천  →  골격 생성  →  환경 파일  →  IDE 표
 - **다음**: `implement`.
 - 💡 셸 일괄 설치: `scripts/install-portable.sh <target-dir>` (`--zip` 배포 패키징).
 
-#### 6단계 — `implement` · 구현 + 시험
+#### 5단계 — `implement` · PRD 전체 자동 구현 + 시험
 
-- **목적**: 표준 환경 위에서 PRD 기능을 구현하고 **동일한 시험 사이클**을 적용.
-- **명령**: `/wise-dev-std:implement [profile-id] [feature-keyword]`
-- **사전조건**: recommend → scaffold → env-init → standardize 완료.
+- **목적**: 표준 환경 위에서 PRD 의 **모든 Epic** 을 한 번의 호출로 구현하고 시험까지 통과시킴.
+- **명령**: `/wise-dev-std:implement [profile-id] [--epic N] [--from N] [--step] [--max-retry K]`
+- **사전조건**: scaffold → env-init 완료(Makefile + `.env.*`). standardize 는 선택.
 - **동작**:
-  1. **dev-env 시험(최초 1회)** — 표준 환경이 제대로 구성됐는지 검증 → `test/dev-env/`.
-  2. `.gitignore` 보장(언어+플랫폼, 멱등).
-  3. PRD 에서 `feature-keyword` 범위 추출 → 표준 구조 위에 구현(표면 최소 변경).
-  4. **시험 사이클** — 새 차수 `test/impl/<Nth>/`: 시나리오→진행→오류시 수정·재시험→결과.
-     `COMPLIANCE.md` 있으면 도메인 시험 케이스 포함.
-  5. **README 현행화** — 구현된 코드를 분석해 한글 `README.md` + 영어 `README.en.md` 상세 갱신.
-- **산출물**: 기능 코드, `test/impl/<Nth>/{scenario,result}.md` + `logs/`, 갱신된 README.
-- **다음**: `review` (또는 다음 기능으로 `implement` 반복).
-- 💡 차수(`1st`,`2nd`,…)는 자동 증가, 기존 차수 디렉터리는 덮어쓰지 않음.
+  1. **dev-env 시험(최초 1회)** — `make preflight → local-build → local-all → db-migrate → test` → `test/dev-env/`.
+  2. PRD 파싱 → **Epic 구현 계획표**(기능·수용기준·의존·상태).
+  3. **사용자 확인 1회** — 계획표 승인 + PRD 의 모호·누락 항목만 질문. 이후 개입 없음.
+  4. **Epic 루프** — Epic 마다 구현 → `test/impl/<Nth>/` 시험 → 실패 시 수정·재시험(`--max-retry`, 기본 5) → PASS 면 다음 Epic.
+     한도 초과 Epic 은 BLOCKED 로 기록하고 계속 진행. Epic 마다 다시 호출할 필요 없음(`--step` 시에만 매번 확인).
+  5. 전체 회귀 `make test` → BLOCKED 가 있으면 필요한 결정을 **한 번에** 질문 → 해당 Epic 재실행.
+  6. **README(한/영) 현행화** + living-doc 으로 PRD 일치 재검토.
+- **산출물**: 기능 코드, Epic 별 `test/impl/<Nth>/{scenario,result}.md` + `logs/`, 갱신된 README/PRD, 최종 계획표.
+- 💡 차수(`1st`,`2nd`,…)는 자동 증가, 기존 차수 디렉터리는 덮어쓰지 않음. 재시험은 같은 차수에 회차 누적.
 
-#### 7단계 — `review` · 심층 분석 + 코드 리뷰
+### 4-5. 선택 명령 (필수 아님 — 간단 가이드)
 
-- **목적**: 구현 완료 코드에 대해 **두 가지 리뷰를 한 번에** 산출.
-- **명령**: `/wise-dev-std:review [target-paths...] [--level 0~4] [--only depth|code|both] [--pdf true|false]`
-- **입력**: 분석 경로(기본 cwd), (선택) 코드 리뷰 레벨/대상/PDF. PRD·AGENTS·프로파일 흔적을 근거로 활용.
-- **동작**:
-  1. **심층 분석**(`depth-reviewer`, 항상 상세) — 스택·라이선스·보안·유지보수·아키텍처·법적·등급.
-  2. **코드 리뷰**(`code-reviewer`, 기본 Level 2) — 라인 단위. `--level` 미지정 시 자동 추천 후 1회 확인.
-  - 두 리뷰는 독립이므로 서브에이전트 2개로 **병렬 실행** 권장.
-- **산출물**: `.review/REVIEW-InDepth.md` + `.review/CODE-REVIEW-Lv<N>/`(INDEX + 파일별 리포트), 선택 시 PDF.
-- **다음**: 발견 위험 수정 → `implement` 재실행 → 다시 `review` (반복).
-- 💡 레벨: 0=비개발자·기획 공유, 1=주니어 온보딩, 2=팀 베이스라인(기본), 3~4=시니어/아키텍처.
-
-> **반복 루프**: 보통 `implement` ↔ `review` 를 기능 단위로 반복합니다. 새 기능마다 `implement`,
-> 분기마다 `review` 로 품질 게이트를 통과시키는 식입니다. 1~5단계는 프로젝트 시작 시 1회면 충분합니다.
+| 명령 | 언제 | 사용 |
+|------|------|------|
+| `/wise-dev-std:review [paths] [--level 0~4] [--only depth\|code]` | 구현 후 품질 게이트가 필요할 때 | 심층 분석 + 라인 단위 코드 리뷰 → `.review/` |
+| `/wise-dev-std:reverse-prd [path] [--full]` | PRD 없이 시작한 기존 소스 | 소스 분석 → `PRD.md` 역도출 |
+| `/wise-dev-std:req-update` | 개발 중 요구사항 변경 | PRD·README·COMPLIANCE 등 문서에만 전파(소스 불변) |
+| `/wise-dev-std:standardize <profile>` | Cursor/Windsurf/Copilot 등 다른 IDE 병용 | `AGENTS.md` + IDE 규칙 파일 내보내기 |
+| `/wise-dev-std:test [--area dev-env\|impl]` | scaffold 흐름 없이 지금 소스만 시험 | test-runner 사이클 즉시 실행 |
+| `/wise-dev-std:ui-design` | 프론트엔드 포함 프로젝트 | 디자인 시스템·레퍼런스·접근성 스택 델타 |
 
 ### 4-3. recommend 출력 예 (형식)
 
@@ -293,10 +295,10 @@ PRD.md  →  스택 추천  →  골격 생성  →  환경 파일  →  IDE 표
 공통 진입점:
 
 ```
-make dev      # uv sync && uvicorn --reload  (또는 compose up)
-make test     # pytest
-make build    # docker build
-make deploy   # helm/argocd
+make preflight | local-build | local-all | local-logs | local-stop     # local (docker infra + honcho/pm2)
+make dev-all | dev-build | dev-logs | dev-stop        # staging-*, prod-* 동일 (prod-build 없음)
+make db-migrate | db-seed | db-reset | db-fresh [ENV=<env>]
+make test | deploy | help
 ```
 
 > 안전: 스캐폴더는 **파일만 생성**합니다. 설치/네트워크 명령은 실행하지 않으며,
@@ -407,7 +409,7 @@ bash plugins/wise-dev-std/scripts/export-portable.sh /path/to/your/project
 test/
 ├── README.md                 # 시험 표준 요약
 ├── dev-env/                  # 표준 환경 구성 검증 (1회) — scaffold + env-init 후
-│   ├── scenario.md           #   의존성 설치, make up, DB 연결, 헬스 체크, make test
+│   ├── scenario.md           #   make preflight/local-build/local-all, db-migrate, 헬스 체크, make test
 │   ├── result.md
 │   └── logs/
 └── impl/                     # 구현 시마다 (implement 명령)

@@ -32,7 +32,7 @@ bundle install
 
 ```bash
 # 1. dev 플레이버 디버그 빌드 + 연결된 기기/에뮬레이터에 설치
-make dev
+make local-all
 ```
 
 Android Studio 에서 열기: `File > Open > {{PROJECT_NAME}}` 선택.
@@ -41,9 +41,14 @@ Android Studio 에서 열기: `File > Open > {{PROJECT_NAME}}` 선택.
 
 | 명령 | 설명 |
 |------|------|
-| `make dev` | Dev 플레이버 디버그 빌드 및 설치 (`./gradlew installDevDebug`) |
+| `make help` | 타겟 목록 |
+| `make setup` | 최초 1회 — Gradle Wrapper 생성, `local.properties` SDK 경로 자동 감지 |
+| `make local-all` | [local] 에뮬레이터/기기에 devDebug 설치 (`./gradlew installDevDebug`) |
+| `make local-stop` | [local] 에뮬레이터 종료 (`adb emu kill`) |
 | `make test` | Dev 플레이버 단위 테스트 (`./gradlew testDevDebugUnitTest`) |
-| `make build` | Prod 플레이버 릴리스 번들 생성 (`./gradlew bundleProdRelease`) |
+| `make dev-build` | [dev] dev 플레이버 릴리스 AAB (`./gradlew bundleDevRelease`) |
+| `make staging-build` | [staging] staging 플레이버 릴리스 AAB (`./gradlew bundleStagingRelease`) |
+| `make prod-build` | [prod] prod 플레이버 릴리스 AAB (`./gradlew bundleProdRelease`) |
 | `make deploy` | Fastlane `beta` lane — Play Store internal 트랙 업로드 |
 
 ### Gradle 직접 사용
@@ -70,7 +75,7 @@ Android Studio 에서 열기: `File > Open > {{PROJECT_NAME}}` 선택.
 ### 릴리스 AAB 빌드
 
 ```bash
-make build
+make prod-build
 # 결과물: app/build/outputs/bundle/prodRelease/app-prod-release.aab
 ```
 
